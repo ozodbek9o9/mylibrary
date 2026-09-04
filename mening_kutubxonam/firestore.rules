@@ -1,0 +1,65 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    // Books: view, add, edit, and delete.
+    match /books/{isbn} {
+      allow read: if signedIn();
+      allow create: if signedIn()
+        && request.resource.data.isbn == isbn
+        && request.resource.data.name is string
+        && request.resource.data.quantity is int
+        && request.resource.data.quantity >= 0;
+      allow update: if signedIn()
+        && request.resource.data.isbn == resource.data.isbn
+        && request.resource.data.name is string
+        && request.resource.data.quantity is int
+        && request.resource.data.quantity >= 0;
+      allow delete: if signedIn();
+    }
+
+    // Classes and students.
+    match /classes/{classId} {
+      allow read, create, update, delete: if signedIn();
+
+      match /students/{studentId} {
+        allow read, create, update, delete: if signedIn();
+
+        // History: create when a book is given, update when it is returned.
+        match /history/{historyId} {
+          allow read: if signedIn();
+          allow create: if signedIn()
+            && request.resource.data.bookName is string
+            && request.resource.data.isbn is string
+            && request.resource.data.borrowedAt is timestamp
+            && request.resource.data.dueAt is timestamp;
+          allow update: if signedIn()
+            && request.resource.data.isbn == resource.data.isbn
+            && request.resource.data.borrowedAt == resource.data.borrowedAt;
+          allow delete: if signedIn();
+        }
+      }
+    }
+
+    // Loans: create when given, update when accepted/returned, delete if needed.
+    match /loans/{loanId} {
+      allow read: if signedIn();
+      allow create: if signedIn()
+        && request.resource.data.isbn is string
+        && request.resource.data.bookName is string
+        && request.resource.data.studentName is string
+        && request.resource.data.className is string
+        && request.resource.data.borrowedAt is timestamp
+        && request.resource.data.dueAt is timestamp;
+      allow update: if signedIn()
+        && request.resource.data.isbn == resource.data.isbn
+        && request.resource.data.borrowedAt == resource.data.borrowedAt
+        && request.resource.data.returnedAt is timestamp;
+      allow delete: if signedIn();
+    }
+  }
+}

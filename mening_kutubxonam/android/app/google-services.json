@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "215192033123",
+    "firebase_url": "https://mening-kutubxonam-c8083-default-rtdb.firebaseio.com",
+    "project_id": "mening-kutubxonam-c8083",
+    "storage_bucket": "mening-kutubxonam-c8083.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:215192033123:android:67011b51c3008e11baa556",
+        "android_client_info": {
+          "package_name": "com.example.mening_kutubxonam"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAKu8kO7NQ339qSDpQ29g8EjFuH5RdK8IA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
