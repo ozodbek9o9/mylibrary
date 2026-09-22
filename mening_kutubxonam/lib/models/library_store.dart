@@ -1,6 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 
+import '../services/user_firestore.dart';
+
 class Book {
   Book({
     required this.isbn,
@@ -78,9 +80,8 @@ class LibraryStore extends ChangeNotifier {
   Future<void> load() async {
     try {
       loading = true;
-      final db = FirebaseFirestore.instance;
-      final bookSnapshot = await db.collection('books').get();
-      final classSnapshot = await db.collection('classes').get();
+      final bookSnapshot = await userFirestore.collection('books').get();
+      final classSnapshot = await userFirestore.collection('classes').get();
       books
         ..clear()
         ..addAll(bookSnapshot.docs.map((doc) => Book.fromMap(doc.data())));
@@ -141,9 +142,7 @@ class LibraryStore extends ChangeNotifier {
     final value = name.trim();
     if (value.isEmpty || classes.containsKey(value)) return;
     classes[value] = [];
-    await FirebaseFirestore.instance.collection('classes').doc(value).set({
-      'name': value,
-    });
+    await userFirestore.collection('classes').doc(value).set({'name': value});
     notifyListeners();
   }
 
@@ -151,7 +150,7 @@ class LibraryStore extends ChangeNotifier {
     final value = name.trim();
     if (value.isEmpty) return;
     final student = Student(value);
-    final ref = FirebaseFirestore.instance
+    final ref = userFirestore
         .collection('classes')
         .doc(className)
         .collection('students')
@@ -191,8 +190,8 @@ class LibraryStore extends ChangeNotifier {
     book.borrowedBy = student.name;
     book.quantity -= 1;
     student.history.add(entry);
-    final loanRef = FirebaseFirestore.instance.collection('loans').doc();
-    final batch = FirebaseFirestore.instance.batch();
+    final loanRef = userFirestore.collection('loans').doc();
+    final batch = userFirestore.batch();
     batch.set(_bookRef(book), book.toMap());
     batch.set(loanRef, {
       'isbn': book.isbn,
@@ -224,11 +223,11 @@ class LibraryStore extends ChangeNotifier {
   }
 
   DocumentReference<Map<String, dynamic>> _bookRef(Book book) =>
-      FirebaseFirestore.instance.collection('books').doc(book.isbn);
+      userFirestore.collection('books').doc(book.isbn);
   DocumentReference<Map<String, dynamic>> _studentRef(
     String className,
     Student student,
-  ) => FirebaseFirestore.instance
+  ) => userFirestore
       .collection('classes')
       .doc(className)
       .collection('students')

@@ -1,6 +1,9 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+
+import '../services/user_firestore.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -37,29 +40,28 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _listenToStreams() {
-    _booksSubscription = FirebaseFirestore.instance
-        .collection('books')
-        .snapshots()
-        .listen((snap) {
+    _booksSubscription = userFirestore.collection('books').snapshots().listen((
+      snap,
+    ) {
       _latestBooks = snap.docs;
       _recomputeStats();
     });
 
-    _studentsSubscription = FirebaseFirestore.instance
+    _studentsSubscription = userFirestore
         .collection('students')
         .snapshots()
         .listen((snap) {
-      _latestStudents = snap.docs;
-      _recomputeStats();
-    });
+          _latestStudents = snap.docs;
+          _recomputeStats();
+        });
 
-    _borrowedSubscription = FirebaseFirestore.instance
+    _borrowedSubscription = userFirestore
         .collection('borrowed_books')
         .snapshots()
         .listen((snap) {
-      _latestBorrowed = snap.docs;
-      _recomputeStats();
-    });
+          _latestBorrowed = snap.docs;
+          _recomputeStats();
+        });
   }
 
   void _recomputeStats() {
@@ -90,7 +92,8 @@ class _HomePageState extends State<HomePage> {
         if (startDate != null) {
           final DateTime dt = startDate.toDate();
           if (dt.year == now.year && dt.month == now.month) {
-            studentMonthlyReads[studentId] = (studentMonthlyReads[studentId] ?? 0) + 1;
+            studentMonthlyReads[studentId] =
+                (studentMonthlyReads[studentId] ?? 0) + 1;
           }
         }
       }
@@ -113,10 +116,12 @@ class _HomePageState extends State<HomePage> {
       ..sort((a, b) => b.value.compareTo(a.value));
 
     final top10 = sortedStudents.take(10).toList();
-    final List<String> tempTopFullNames =
-        top10.map((e) => studentIdToFullName[e.key] ?? '').toList();
-    final List<double> tempTopValues =
-        top10.map((e) => e.value.toDouble()).toList();
+    final List<String> tempTopFullNames = top10
+        .map((e) => studentIdToFullName[e.key] ?? '')
+        .toList();
+    final List<double> tempTopValues = top10
+        .map((e) => e.value.toDouble())
+        .toList();
 
     if (mounted) {
       setState(() {
@@ -174,7 +179,6 @@ class _HomePageState extends State<HomePage> {
 
     return RefreshIndicator(
       onRefresh: () async {
-        // Just wait briefly; streams will auto-update
         await Future.delayed(const Duration(milliseconds: 300));
       },
       color: Colors.red,
@@ -322,13 +326,14 @@ class _ReadersChart extends StatelessWidget {
   }
 
   Widget _bar(BuildContext context, int index, double maxValue) {
-    final double heightRatio =
-        values[index] == 0 ? 0 : (values[index] / maxValue);
+    final double heightRatio = values[index] == 0
+        ? 0
+        : (values[index] / maxValue);
     final double barHeight = (heightRatio * 120).clamp(4.0, 120.0);
 
     return GestureDetector(
-      onTap: () => _showStudent(
-          context, fullNames[index], values[index].round()),
+      onTap: () =>
+          _showStudent(context, fullNames[index], values[index].round()),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 4),
         child: Column(
@@ -355,9 +360,10 @@ class _ReadersChart extends StatelessWidget {
             Text(
               '${index + 1}',
               style: const TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.grey),
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey,
+              ),
             ),
           ],
         ),
@@ -373,8 +379,7 @@ class _ReadersChart extends StatelessWidget {
       ),
       builder: (_) => Container(
         height: 120,
-        padding:
-            const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.center,
@@ -396,8 +401,7 @@ class _ReadersChart extends StatelessWidget {
                 const SizedBox(width: 8),
                 Text(
                   'Bu oy o\'qilgan kitoblar: ',
-                  style: TextStyle(
-                      color: Colors.grey.shade700, fontSize: 15),
+                  style: TextStyle(color: Colors.grey.shade700, fontSize: 15),
                 ),
                 Text(
                   '$totalBooks ta',

@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'firebase_options.dart';
 import 'models/library_store.dart';
 import 'pages/layout_page.dart';
+import 'login_page.dart';
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -15,13 +16,9 @@ Future<void> main() async {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
-    if (FirebaseAuth.instance.currentUser == null) {
-      await FirebaseAuth.instance.signInAnonymously();
-    }
-  } catch (_) {}
-  try {
-    await libraryStore.load().timeout(const Duration(seconds: 5));
-  } catch (_) {}
+  } catch (e, st) {
+    debugPrint('Firebase init error: $e\n$st');
+  }
   runApp(const MyLibrary());
   WidgetsBinding.instance.addPostFrameCallback((_) {
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
@@ -71,9 +68,9 @@ class _SplashPageState extends State<SplashPage> {
     super.initState();
     Future.delayed(const Duration(seconds: 5), () {
       if (mounted) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const LayoutPage()),
-        );
+        Navigator.of(
+          context,
+        ).pushReplacement(MaterialPageRoute(builder: (_) => const AuthGate()));
       }
     });
   }
@@ -100,4 +97,43 @@ class _SplashPageState extends State<SplashPage> {
       ),
     ),
   );
+}
+
+class AuthGate extends StatelessWidget {
+  const AuthGate({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    if (Firebase.apps.isEmpty) return const LoginPage();
+    return StreamBuilder<User?>(
+      stream: FirebaseAuth.instance.authStateChanges(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+        if (snapshot.data == null) return const LoginPage();
+        return const _AuthenticatedApp();
+      },
+    );
+  }
+}
+
+class _AuthenticatedApp extends StatefulWidget {
+  const _AuthenticatedApp();
+
+  @override
+  State<_AuthenticatedApp> createState() => _AuthenticatedAppState();
+}
+
+class _AuthenticatedAppState extends State<_AuthenticatedApp> {
+  @override
+  void initState() {
+    super.initState();
+    libraryStore.load();
+  }
+
+  @override
+  Widget build(BuildContext context) => const LayoutPage();
 }

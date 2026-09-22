@@ -1,4 +1,5 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
@@ -7,6 +8,8 @@ import 'books_page.dart';
 import 'home_page.dart';
 import 'students_page.dart';
 import 'notifications_page.dart';
+import '../services/user_firestore.dart';
+import '../services/auth_service.dart';
 
 class LayoutPage extends StatefulWidget {
   const LayoutPage({super.key});
@@ -18,7 +21,7 @@ class LayoutPage extends StatefulWidget {
 class _LayoutPageState extends State<LayoutPage> {
   int index = 0;
   final pages = const [HomePage(), BooksPage(), StudentsPage()];
-  
+
   bool hasInternet = true;
   late StreamSubscription<List<ConnectivityResult>> _connectivitySubscription;
 
@@ -26,11 +29,13 @@ class _LayoutPageState extends State<LayoutPage> {
   void initState() {
     super.initState();
     _checkInitialInternet();
-    _connectivitySubscription = Connectivity().onConnectivityChanged.listen((List<ConnectivityResult> results) {
+    _connectivitySubscription = Connectivity().onConnectivityChanged.listen((
+      List<ConnectivityResult> results,
+    ) {
       _updateConnectionStatus(results);
     });
   }
-  
+
   @override
   void dispose() {
     _connectivitySubscription.cancel();
@@ -44,7 +49,9 @@ class _LayoutPageState extends State<LayoutPage> {
 
   void _updateConnectionStatus(List<ConnectivityResult> results) {
     setState(() {
-      hasInternet = results.isNotEmpty && !results.every((r) => r == ConnectivityResult.none);
+      hasInternet =
+          results.isNotEmpty &&
+          !results.every((r) => r == ConnectivityResult.none);
     });
   }
 
@@ -85,11 +92,19 @@ class _LayoutPageState extends State<LayoutPage> {
               ElevatedButton.icon(
                 onPressed: _checkInitialInternet,
                 icon: const Icon(Icons.refresh, color: Colors.white),
-                label: const Text("Refresh", style: TextStyle(color: Colors.white)),
+                label: const Text(
+                  "Refresh",
+                  style: TextStyle(color: Colors.white),
+                ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.red,
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 12,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
               ),
             ],
@@ -98,37 +113,40 @@ class _LayoutPageState extends State<LayoutPage> {
       );
     }
 
-    String appBarTitle = 'Kutubxonam';
-    if (index == 1) appBarTitle = 'Kitoblar';
-    if (index == 2) appBarTitle = 'O\'quvchilar';
-
     return Scaffold(
       appBar: AppBar(
         titleSpacing: 20,
-        title: Row(
-          children: [
-            if (index == 0) Image.asset('assets/app_icon.png', width: 34, height: 34),
-            if (index == 0) const SizedBox(width: 10),
-            Text(
-              appBarTitle,
-              style: const TextStyle(
-                color: Color(0xffc62828),
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ],
-        ),
+        title: const _AppBrand(),
         actions: [
-          IconButton(
+          IconButton.filledTonal(
             onPressed: _showNewAcademicYearModal,
             icon: const Icon(Icons.change_circle_outlined, color: Colors.red),
             tooltip: 'Yangi o\'quv yili',
+            style: IconButton.styleFrom(
+              backgroundColor: const Color(0xfffff0f0),
+              foregroundColor: Colors.red,
+            ),
           ),
-          IconButton(
+          IconButton.filledTonal(
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const NotificationsPage()),
             ),
             icon: const Icon(Icons.notifications_none_rounded),
+            tooltip: 'Bildirishnomalar',
+            style: IconButton.styleFrom(
+              backgroundColor: const Color(0xfffff0f0),
+              foregroundColor: const Color(0xffc62828),
+            ),
+          ),
+          IconButton.filledTonal(
+            onPressed: _signOut,
+            icon: const Icon(Icons.logout_rounded),
+            tooltip: 'Chiqish',
+            style: IconButton.styleFrom(
+              backgroundColor: const Color(0xffc62828),
+              foregroundColor: Colors.white,
+              overlayColor: Colors.white24,
+            ),
           ),
           const SizedBox(width: 8),
         ],
@@ -158,6 +176,50 @@ class _LayoutPageState extends State<LayoutPage> {
       ),
     );
   }
+
+  Future<void> _signOut() async {
+    final shouldSignOut = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Chiqishni tasdiqlaysizmi?'),
+        content: const Text('Akkauntdan chiqib, login sahifasiga qaytasiz.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Bekor qilish'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Chiqish'),
+          ),
+        ],
+      ),
+    );
+    if (shouldSignOut != true) return;
+    await AuthService.instance.signOut();
+  }
+}
+
+class _AppBrand extends StatelessWidget {
+  const _AppBrand();
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Image.asset('assets/app_icon.png', width: 34, height: 34),
+        const SizedBox(width: 10),
+        const Text(
+          'Kutubxonam',
+          style: TextStyle(
+            color: Color(0xffc62828),
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 class AcademicYearModal extends StatefulWidget {
@@ -174,7 +236,7 @@ class _AcademicYearModalState extends State<AcademicYearModal> {
   Widget build(BuildContext context) {
     double height = 220;
     if (step == 1) height = 400;
-    
+
     return AnimatedContainer(
       duration: const Duration(milliseconds: 300),
       height: height,
@@ -189,16 +251,32 @@ class _AcademicYearModalState extends State<AcademicYearModal> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text("O'quv yilini almashtirish", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.red)),
+            const Text(
+              "O'quv yilini almashtirish",
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.red,
+              ),
+            ),
             const SizedBox(height: 10),
-            const Expanded(child: Text("Yangi o'quv yili uchun tizimni yangilash imkoniyati mavjud. Buni amalga oshirishdan oldin barcha o'zgarishlar haqida bilib oling.")),
+            const Expanded(
+              child: Text(
+                "Yangi o'quv yili uchun tizimni yangilash imkoniyati mavjud. Buni amalga oshirishdan oldin barcha o'zgarishlar haqida bilib oling.",
+              ),
+            ),
             ElevatedButton(
               onPressed: () => setState(() => step = 1),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.red,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
               ),
-              child: const Text("Keyingisi", style: TextStyle(color: Colors.white)),
+              child: const Text(
+                "Keyingisi",
+                style: TextStyle(color: Colors.white),
+              ),
             ),
           ],
         );
@@ -206,7 +284,14 @@ class _AcademicYearModalState extends State<AcademicYearModal> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text("Batafsil ma'lumot", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.red)),
+            const Text(
+              "Batafsil ma'lumot",
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.red,
+              ),
+            ),
             const SizedBox(height: 10),
             const Expanded(
               child: SingleChildScrollView(
@@ -214,8 +299,9 @@ class _AcademicYearModalState extends State<AcademicYearModal> {
                   "Yangi o'quv yilini boshlash tizimdagi kitoblardan tashqari barcha ma'lumotlarni tozalaydi.\n\n"
                   "• Barcha sinflar o'chiriladi\n"
                   "• Barcha o'quvchilar o'chiriladi\n"
-                  "• Barcha kitob olish va qaytarish statistikasi hamda tarixi o'chiriladi\n\n"
-                  "Kitoblar bazasi esa o'z holicha qoladi. Ularning ma'lumotlari saqlanadi, barcha band qilingan kitoblar 'Kitob band emas' holatiga avtomatik qaytariladi."
+                  "• O'quvchilar va kitob olish-qaytarish tarixi o'chiriladi\n"
+                  "• Bosh sahifadagi o'quv yiliga tegishli statistika tozalanadi\n\n"
+                  "Kitoblar bazasi esa o'z holicha qoladi. Kitoblarning o'zi o'chirilmaydi.",
                 ),
               ),
             ),
@@ -223,9 +309,14 @@ class _AcademicYearModalState extends State<AcademicYearModal> {
               onPressed: () => setState(() => step = 2),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.red,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
               ),
-              child: const Text("Keyingisi", style: TextStyle(color: Colors.white)),
+              child: const Text(
+                "Keyingisi",
+                style: TextStyle(color: Colors.white),
+              ),
             ),
           ],
         );
@@ -233,15 +324,29 @@ class _AcademicYearModalState extends State<AcademicYearModal> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text("Tasdiqlaysizmi?", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.red)),
+            const Text(
+              "Tasdiqlaysizmi?",
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.red,
+              ),
+            ),
             const SizedBox(height: 10),
-            const Expanded(child: Text("Yangi o'quv yiliga o'tishga tayyormisiz? Bu amalni orqaga qaytarib bo'lmaydi.")),
+            const Expanded(
+              child: Text(
+                "Yangi o'quv yiliga o'tishga tayyormisiz? Bu amalni orqaga qaytarib bo'lmaydi.",
+              ),
+            ),
             Row(
               children: [
                 Expanded(
                   child: TextButton(
                     onPressed: () => Navigator.pop(context),
-                    child: const Text("Bekor qilish", style: TextStyle(color: Colors.black)),
+                    child: const Text(
+                      "Bekor qilish",
+                      style: TextStyle(color: Colors.black),
+                    ),
                   ),
                 ),
                 Expanded(
@@ -249,9 +354,14 @@ class _AcademicYearModalState extends State<AcademicYearModal> {
                     onPressed: _startResetProcess,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.red,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
                     ),
-                    child: const Text("Tasdiqlash", style: TextStyle(color: Colors.white)),
+                    child: const Text(
+                      "Tasdiqlash",
+                      style: TextStyle(color: Colors.white),
+                    ),
                   ),
                 ),
               ],
@@ -264,7 +374,10 @@ class _AcademicYearModalState extends State<AcademicYearModal> {
           children: [
             const CircularProgressIndicator(color: Colors.red),
             const SizedBox(height: 20),
-            Text(loadingText, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            Text(
+              loadingText,
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
           ],
         );
       case 4:
@@ -274,13 +387,19 @@ class _AcademicYearModalState extends State<AcademicYearModal> {
           children: [
             const Icon(Icons.check_circle, color: Colors.green, size: 60),
             const SizedBox(height: 10),
-            const Text("Yangi o'quv yiliga o'tildi!", textAlign: TextAlign.center, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const Text(
+              "Yangi o'quv yiliga o'tildi!",
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 20),
             ElevatedButton(
               onPressed: () => Navigator.pop(context),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.green,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
               ),
               child: const Text("OK", style: TextStyle(color: Colors.white)),
             ),
@@ -292,15 +411,46 @@ class _AcademicYearModalState extends State<AcademicYearModal> {
   }
 
   void _startResetProcess() async {
+    final exportStatus = await userFirestore
+        .collection('system')
+        .doc('academic_year')
+        .get();
+    final pdfExported = exportStatus.data()?['pdf_exported'] == true;
+    if (!pdfExported) {
+      if (mounted) {
+        await showDialog<void>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('PDF hisobot kerak'),
+            content: const Text(
+              'Yangi o\'quv yiliga o\'tishdan oldin O\'quvchilar sahifasidagi "Yuklash" tugmasi orqali yillik PDF hisobotni yuklab oling.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text(
+                  'Tushunarli',
+                  style: TextStyle(color: Colors.red),
+                ),
+              ),
+            ],
+          ),
+        );
+      }
+      return;
+    }
+
     setState(() {
       step = 3;
       loadingText = "Jarayon boshlandi...";
     });
 
-    _wipeDatabase();
+    await _wipeDatabase();
 
     await Future.delayed(const Duration(seconds: 3));
-    if (mounted) setState(() => loadingText = "Barcha ma'lumotlar tozalanmoqda...");
+    if (mounted) {
+      setState(() => loadingText = "Barcha ma'lumotlar tozalanmoqda...");
+    }
 
     await Future.delayed(const Duration(seconds: 4));
     if (mounted) setState(() => loadingText = "Deyarli tayyor...");
@@ -310,17 +460,43 @@ class _AcademicYearModalState extends State<AcademicYearModal> {
   }
 
   Future<void> _wipeDatabase() async {
-    try {
-      final classes = await FirebaseFirestore.instance.collection('classes').get();
-      for (var doc in classes.docs) { await doc.reference.delete(); }
+    final firestore = userFirestore;
 
-      final students = await FirebaseFirestore.instance.collection('students').get();
-      for (var doc in students.docs) { await doc.reference.delete(); }
+    // The current UI stores students and borrowing history at the top level.
+    await _deleteCollection(firestore.collection('borrowed_books'));
+    await _deleteCollection(firestore.collection('loans'));
+    await _deleteCollection(firestore.collection('students'));
 
-      final borrowed = await FirebaseFirestore.instance.collection('borrowed_books').get();
-      for (var doc in borrowed.docs) { await doc.reference.delete(); }
-    } catch (e) {
-      // Background delete errors ignored in UI
+    // Also remove data written by the older nested class/student model.
+    final classes = await firestore.collection('classes').get();
+    for (final classDoc in classes.docs) {
+      final nestedStudents = await classDoc.reference
+          .collection('students')
+          .get();
+      for (final studentDoc in nestedStudents.docs) {
+        await _deleteCollection(studentDoc.reference.collection('history'));
+        await studentDoc.reference.delete();
+      }
+      await classDoc.reference.delete();
+    }
+
+    await firestore.collection('system').doc('academic_year').set({
+      'pdf_exported': false,
+      'reset_at': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
+  Future<void> _deleteCollection(
+    CollectionReference<Map<String, dynamic>> collection,
+  ) async {
+    final documents = await collection.get();
+    for (var index = 0; index < documents.docs.length; index += 450) {
+      final batch = userFirestore.batch();
+      final end = (index + 450).clamp(0, documents.docs.length);
+      for (final document in documents.docs.sublist(index, end)) {
+        batch.delete(document.reference);
+      }
+      await batch.commit();
     }
   }
 }

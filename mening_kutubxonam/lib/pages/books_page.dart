@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+
 import '../ui_helpers.dart';
+import '../services/user_firestore.dart';
 
 class BooksPage extends StatefulWidget {
   const BooksPage({super.key});
@@ -13,6 +15,7 @@ class BooksPage extends StatefulWidget {
 class _BooksPageState extends State<BooksPage> {
   String searchQuery = '';
   String currentFilter = 'A-Z'; // Default filter
+  int _refreshKey = 0;
 
   final List<String> filterOptions = [
     'A-Z',
@@ -20,8 +23,15 @@ class _BooksPageState extends State<BooksPage> {
     'Sheriy kitoblar',
     'Badiiy kitoblar',
     'Ertak kitoblar',
-    'Ilmiy kitoblar'
+    'Ilmiy kitoblar',
   ];
+
+  Future<void> _refreshBooks() async {
+    await userFirestore
+        .collection('books')
+        .get(const GetOptions(source: Source.server));
+    if (mounted) setState(() => _refreshKey++);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -31,6 +41,22 @@ class _BooksPageState extends State<BooksPage> {
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
+            const Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Kitoblar',
+                style: TextStyle(fontSize: 25, fontWeight: FontWeight.w800),
+              ),
+            ),
+            const SizedBox(height: 4),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Kutubxonadagi barcha kitoblar',
+                style: TextStyle(color: Colors.grey),
+              ),
+            ),
+            const SizedBox(height: 20),
             // Top action bar
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -66,10 +92,16 @@ class _BooksPageState extends State<BooksPage> {
                 ElevatedButton.icon(
                   onPressed: () => _showFilterSheet(),
                   icon: const Icon(Icons.filter_list, color: Colors.white),
-                  label: const Text('Filter', style: TextStyle(color: Colors.white)),
+                  label: const Text(
+                    'Filter',
+                    style: TextStyle(color: Colors.white),
+                  ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.black87,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 16,
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -85,7 +117,11 @@ class _BooksPageState extends State<BooksPage> {
                 icon: const Icon(Icons.add, color: Colors.white),
                 label: const Text(
                   'Kitob qo\'shish',
-                  style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.red,
@@ -111,94 +147,148 @@ class _BooksPageState extends State<BooksPage> {
                     ),
                   ],
                 ),
-                child: StreamBuilder<QuerySnapshot>(
-                  stream: FirebaseFirestore.instance.collection('books').snapshots(),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Center(child: CircularProgressIndicator(color: Colors.red));
-                    }
-                    if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                      return const Center(child: Text("Hozircha kitoblar yo'q."));
-                    }
-
-                    List<QueryDocumentSnapshot> docs = snapshot.data!.docs;
-
-                    // Filtering & Searching
-                    docs = docs.where((doc) {
-                      Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
-                      String title = (data['title'] ?? '').toString().toLowerCase();
-                      String isbn = (data['isbn'] ?? '').toString().toLowerCase();
-                      String genre = (data['genre'] ?? '');
-
-                      bool matchesSearch = title.contains(searchQuery) || isbn.contains(searchQuery);
-                      bool matchesFilter = true;
-
-                      if (currentFilter != 'A-Z' && currentFilter != 'Z-A') {
-                        matchesFilter = genre == currentFilter;
+                child: RefreshIndicator(
+                  onRefresh: _refreshBooks,
+                  color: Colors.red,
+                  child: StreamBuilder<QuerySnapshot>(
+                    key: ValueKey(_refreshKey),
+                    stream: userFirestore.collection('books').snapshots(),
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const Center(
+                          child: CircularProgressIndicator(color: Colors.red),
+                        );
                       }
-
-                      return matchesSearch && matchesFilter;
-                    }).toList();
-
-                    // Sorting
-                    docs.sort((a, b) {
-                      String titleA = (a.data() as Map<String, dynamic>)['title']?.toString().toLowerCase() ?? '';
-                      String titleB = (b.data() as Map<String, dynamic>)['title']?.toString().toLowerCase() ?? '';
-                      if (currentFilter == 'Z-A') {
-                        return titleB.compareTo(titleA);
-                      }
-                      return titleA.compareTo(titleB); // Default A-Z
-                    });
-
-                    return SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: SingleChildScrollView(
-                        child: DataTable(
-                          headingTextStyle: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black),
-                          columns: const [
-                            DataColumn(label: Text('T/R')),
-                            DataColumn(label: Text('Kitob nomi')),
-                            DataColumn(label: Text('Muallifi')),
-                            DataColumn(label: Text('Janr')),
-                            DataColumn(label: Text('Harakat')),
+                      if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                        return ListView(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          children: const [
+                            SizedBox(height: 180),
+                            Center(child: Text("Hozircha kitoblar yo'q.")),
                           ],
-                          rows: List.generate(docs.length, (index) {
-                            var data = docs[index].data() as Map<String, dynamic>;
-                            String docId = docs[index].id;
-                            String author = (data['author'] == null || data['author'].toString().trim().isEmpty) ? "-" : data['author'];
+                        );
+                      }
 
-                            return DataRow(cells: [
-                              DataCell(Text('${index + 1}')),
-                              DataCell(
-                                InkWell(
-                                  onTap: () => _showBookBorrowers(data['isbn'], data['title']),
-                                  child: Text(
-                                    data['title'] ?? '',
-                                    style: const TextStyle(color: Colors.red, decoration: TextDecoration.underline),
-                                  ),
-                                ),
-                              ),
-                              DataCell(Text(author)),
-                              DataCell(Text(data['genre'] ?? '')),
-                              DataCell(Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  IconButton(
-                                    icon: const Icon(Icons.edit, color: Colors.blue),
-                                    onPressed: () => _showAddOrEditBookModal(docId: docId, existingData: data),
-                                  ),
-                                  IconButton(
-                                    icon: const Icon(Icons.delete, color: Colors.red),
-                                    onPressed: () => _deleteBook(docId),
+                      List<QueryDocumentSnapshot> docs = snapshot.data!.docs;
+
+                      // Filtering & Searching
+                      docs = docs.where((doc) {
+                        Map<String, dynamic> data =
+                            doc.data() as Map<String, dynamic>;
+                        String title = (data['title'] ?? '')
+                            .toString()
+                            .toLowerCase();
+                        String isbn = (data['isbn'] ?? '')
+                            .toString()
+                            .toLowerCase();
+                        String genre = (data['genre'] ?? '');
+
+                        bool matchesSearch =
+                            title.contains(searchQuery) ||
+                            isbn.contains(searchQuery);
+                        bool matchesFilter = true;
+
+                        if (currentFilter != 'A-Z' && currentFilter != 'Z-A') {
+                          matchesFilter = genre == currentFilter;
+                        }
+
+                        return matchesSearch && matchesFilter;
+                      }).toList();
+
+                      // Sorting
+                      docs.sort((a, b) {
+                        String titleA =
+                            (a.data() as Map<String, dynamic>)['title']
+                                ?.toString()
+                                .toLowerCase() ??
+                            '';
+                        String titleB =
+                            (b.data() as Map<String, dynamic>)['title']
+                                ?.toString()
+                                .toLowerCase() ??
+                            '';
+                        if (currentFilter == 'Z-A') {
+                          return titleB.compareTo(titleA);
+                        }
+                        return titleA.compareTo(titleB); // Default A-Z
+                      });
+
+                      return SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: SingleChildScrollView(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          child: DataTable(
+                            headingTextStyle: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black,
+                            ),
+                            columns: const [
+                              DataColumn(label: Text('T/R')),
+                              DataColumn(label: Text('Kitob nomi')),
+                              DataColumn(label: Text('Muallifi')),
+                              DataColumn(label: Text('Janr')),
+                              DataColumn(label: Text('Harakat')),
+                            ],
+                            rows: List.generate(docs.length, (index) {
+                              var data =
+                                  docs[index].data() as Map<String, dynamic>;
+                              String docId = docs[index].id;
+                              String author =
+                                  (data['author'] == null ||
+                                      data['author'].toString().trim().isEmpty)
+                                  ? "-"
+                                  : data['author'];
+
+                              return DataRow(
+                                cells: [
+                                  DataCell(Text('${index + 1}')),
+                                  DataCell(Text(data['title'] ?? '')),
+                                  DataCell(Text(author)),
+                                  DataCell(Text(data['genre'] ?? '')),
+                                  DataCell(
+                                    Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        IconButton(
+                                          tooltip: 'Bandlik holati',
+                                          icon: const Icon(
+                                            Icons.info_outline_rounded,
+                                            color: Colors.red,
+                                          ),
+                                          onPressed: () => _showBookBorrowers(
+                                            data['isbn'],
+                                            data['title'],
+                                          ),
+                                        ),
+                                        IconButton(
+                                          icon: const Icon(
+                                            Icons.edit,
+                                            color: Colors.blue,
+                                          ),
+                                          onPressed: () =>
+                                              _showAddOrEditBookModal(
+                                                docId: docId,
+                                                existingData: data,
+                                              ),
+                                        ),
+                                        IconButton(
+                                          icon: const Icon(
+                                            Icons.delete,
+                                            color: Colors.red,
+                                          ),
+                                          onPressed: () => _deleteBook(docId),
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ],
-                              )),
-                            ]);
-                          }),
+                              );
+                            }),
+                          ),
                         ),
-                      ),
-                    );
-                  },
+                      );
+                    },
+                  ),
                 ),
               ),
             ),
@@ -221,8 +311,17 @@ class _BooksPageState extends State<BooksPage> {
             mainAxisSize: MainAxisSize.min,
             children: filterOptions.map((filter) {
               return ListTile(
-                title: Text(filter, style: TextStyle(fontWeight: currentFilter == filter ? FontWeight.bold : FontWeight.normal)),
-                trailing: currentFilter == filter ? const Icon(Icons.check, color: Colors.red) : null,
+                title: Text(
+                  filter,
+                  style: TextStyle(
+                    fontWeight: currentFilter == filter
+                        ? FontWeight.bold
+                        : FontWeight.normal,
+                  ),
+                ),
+                trailing: currentFilter == filter
+                    ? const Icon(Icons.check, color: Colors.red)
+                    : null,
                 onTap: () {
                   setState(() {
                     currentFilter = filter;
@@ -237,7 +336,10 @@ class _BooksPageState extends State<BooksPage> {
     );
   }
 
-  void _showAddOrEditBookModal({String? docId, Map<String, dynamic>? existingData}) {
+  void _showAddOrEditBookModal({
+    String? docId,
+    Map<String, dynamic>? existingData,
+  }) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -259,18 +361,24 @@ class _BooksPageState extends State<BooksPage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Bekor qilish', style: TextStyle(color: Colors.black)),
+            child: const Text(
+              'Bekor qilish',
+              style: TextStyle(color: Colors.black),
+            ),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('O\'chirish', style: TextStyle(color: Colors.red)),
+            child: const Text(
+              'O\'chirish',
+              style: TextStyle(color: Colors.red),
+            ),
           ),
         ],
       ),
     );
 
     if (confirm) {
-      await FirebaseFirestore.instance.collection('books').doc(docId).delete();
+      await userFirestore.collection('books').doc(docId).delete();
     }
   }
 
@@ -282,44 +390,87 @@ class _BooksPageState extends State<BooksPage> {
       ),
       builder: (context) {
         return Container(
-          height: 200,
+          height: 270,
           padding: const EdgeInsets.all(20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 title,
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.red),
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.red,
+                ),
               ),
               const SizedBox(height: 16),
               Expanded(
                 child: StreamBuilder<QuerySnapshot>(
-                  stream: FirebaseFirestore.instance
+                  stream: userFirestore
                       .collection('borrowed_books')
                       .where('book_isbn', isEqualTo: isbn)
                       .where('status', isEqualTo: 'active')
                       .snapshots(),
                   builder: (context, snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Center(child: CircularProgressIndicator(color: Colors.red));
-                    }
-                    if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
                       return const Center(
-                        child: Text(
-                          "Kitob band emas",
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                        ),
+                        child: CircularProgressIndicator(color: Colors.red),
                       );
                     }
                     var docs = snapshot.data!.docs;
-                    return ListView.builder(
-                      itemCount: docs.length,
-                      itemBuilder: (context, index) {
-                        var data = docs[index].data() as Map<String, dynamic>;
-                        return ListTile(
-                          contentPadding: EdgeInsets.zero,
-                          leading: const Icon(Icons.person, color: Colors.red),
-                          title: Text("Olingan: ${data['student_name']}"),
+                    return FutureBuilder<
+                      DocumentSnapshot<Map<String, dynamic>>
+                    >(
+                      future: userFirestore
+                          .collection('books')
+                          .where('isbn', isEqualTo: isbn)
+                          .limit(1)
+                          .get()
+                          .then((result) => result.docs.first),
+                      builder: (context, bookSnapshot) {
+                        final bookData = bookSnapshot.data?.data() ?? {};
+                        final total = (bookData['count'] as num?)?.toInt() ?? 1;
+                        final available =
+                            (bookData['available_count'] as num?)?.toInt() ??
+                            total - docs.length;
+                        final status = docs.isEmpty
+                            ? 'Kitob band emas'
+                            : available <= 0
+                            ? total == 1
+                                  ? 'Kitob band'
+                                  : 'Barcha kitoblar band'
+                            : 'Jami: $total ta | Band: ${docs.length} ta | Qolgan: $available ta';
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              status,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Expanded(
+                              child: ListView.builder(
+                                itemCount: docs.length,
+                                itemBuilder: (context, index) {
+                                  final data =
+                                      docs[index].data()
+                                          as Map<String, dynamic>;
+                                  return ListTile(
+                                    contentPadding: EdgeInsets.zero,
+                                    leading: const Icon(
+                                      Icons.person,
+                                      color: Colors.red,
+                                    ),
+                                    title: Text(
+                                      "Olingan: ${data['student_name']}",
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                          ],
                         );
                       },
                     );
@@ -347,20 +498,24 @@ class AddBookModal extends StatefulWidget {
 class _AddBookModalState extends State<AddBookModal> {
   bool _isScanIntro = true;
   bool _isScanning = false;
+  bool _hasMultipleCopies = false;
   MobileScannerController cameraController = MobileScannerController(
     detectionSpeed: DetectionSpeed.noDuplicates,
   );
-  
+
   final TextEditingController _isbnController = TextEditingController();
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _authorController = TextEditingController();
+  final TextEditingController _countController = TextEditingController(
+    text: '1',
+  );
   String _selectedGenre = 'Badiiy kitoblar';
 
   final List<String> genres = [
     'Badiiy kitoblar',
     'Sheriy kitoblar',
     'Ilmiy kitoblar',
-    'Ertak kitoblar'
+    'Ertak kitoblar',
   ];
 
   @override
@@ -372,6 +527,9 @@ class _AddBookModalState extends State<AddBookModal> {
       _isbnController.text = widget.existingData!['isbn'] ?? '';
       _titleController.text = widget.existingData!['title'] ?? '';
       _authorController.text = widget.existingData!['author'] ?? '';
+      final count = (widget.existingData!['count'] as num?)?.toInt() ?? 1;
+      _hasMultipleCopies = count > 1;
+      _countController.text = '$count';
       if (genres.contains(widget.existingData!['genre'])) {
         _selectedGenre = widget.existingData!['genre'];
       }
@@ -384,27 +542,32 @@ class _AddBookModalState extends State<AddBookModal> {
     _isbnController.dispose();
     _titleController.dispose();
     _authorController.dispose();
+    _countController.dispose();
     super.dispose();
   }
 
   void _saveBook() async {
     if (_isbnController.text.isEmpty || _titleController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Iltimos, barcha majburiy maydonlarni to\'ldiring!')),
+        const SnackBar(
+          content: Text('Iltimos, barcha majburiy maydonlarni to\'ldiring!'),
+        ),
       );
       return;
     }
 
     // Check for duplicate ISBN if adding new
     if (widget.docId == null) {
-      var existing = await FirebaseFirestore.instance
+      var existing = await userFirestore
           .collection('books')
           .where('isbn', isEqualTo: _isbnController.text.trim())
           .get();
       if (existing.docs.isNotEmpty) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Ushbu ISBN ga ega kitob allaqachon mavjud!')),
+            const SnackBar(
+              content: Text('Ushbu ISBN ga ega kitob allaqachon mavjud!'),
+            ),
           );
         }
         return;
@@ -418,23 +581,56 @@ class _AddBookModalState extends State<AddBookModal> {
       'genre': _selectedGenre,
       'createdAt': FieldValue.serverTimestamp(),
     };
+    final count = _hasMultipleCopies
+        ? int.tryParse(_countController.text.trim()) ?? 0
+        : 1;
+    if (count < 1) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Kitob soni kamida 1 bo\'lishi kerak.')),
+      );
+      return;
+    }
+    bookData['count'] = count;
+    if (widget.docId == null) {
+      bookData['available_count'] = count;
+    } else {
+      final oldCount = (widget.existingData?['count'] as num?)?.toInt() ?? 1;
+      final oldAvailable =
+          (widget.existingData?['available_count'] as num?)?.toInt() ??
+          oldCount;
+      final borrowed = oldCount - oldAvailable;
+      if (count < borrowed) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Kamida $borrowed ta nusxa bo\'lishi kerak.')),
+        );
+        return;
+      }
+      bookData['available_count'] = count - borrowed;
+    }
 
     if (mounted) await showLoading(context);
 
     try {
       if (widget.docId != null) {
-        await FirebaseFirestore.instance.collection('books').doc(widget.docId).update(bookData);
+        await userFirestore
+            .collection('books')
+            .doc(widget.docId)
+            .update(bookData);
       } else {
-        await FirebaseFirestore.instance.collection('books').add(bookData);
+        await userFirestore.collection('books').add(bookData);
       }
-      
+
       if (mounted) {
         Navigator.pop(context);
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Xatolik yuz berdi: $e (Ehtimol Firebase ruxsatnomalari (Rules) eskirgan)')),
+          SnackBar(
+            content: Text(
+              'Xatolik yuz berdi: $e (Ehtimol Firebase ruxsatnomalari (Rules) eskirgan)',
+            ),
+          ),
         );
       }
     }
@@ -443,7 +639,9 @@ class _AddBookModalState extends State<AddBookModal> {
   @override
   Widget build(BuildContext context) {
     double screenHeight = MediaQuery.of(context).size.height;
-    double modalHeight = _isScanIntro ? 200 : (_isScanning ? 350 : screenHeight * 0.7);
+    double modalHeight = _isScanIntro
+        ? 200
+        : (_isScanning ? 350 : screenHeight * 0.7);
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 300),
@@ -459,7 +657,11 @@ class _AddBookModalState extends State<AddBookModal> {
         children: [
           Text(
             widget.docId == null ? 'Kitob qo\'shish' : 'Kitobni tahrirlash',
-            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.red),
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.red,
+            ),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 16),
@@ -476,11 +678,20 @@ class _AddBookModalState extends State<AddBookModal> {
                         _isScanning = true;
                       });
                     },
-                    icon: const Icon(Icons.qr_code_scanner, color: Colors.white, size: 28),
-                    label: const Text('Kitobni skanerlash', style: TextStyle(color: Colors.white, fontSize: 18)),
+                    icon: const Icon(
+                      Icons.qr_code_scanner,
+                      color: Colors.white,
+                      size: 28,
+                    ),
+                    label: const Text(
+                      'Kitobni skanerlash',
+                      style: TextStyle(color: Colors.white, fontSize: 18),
+                    ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.red,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                   ),
                 ),
@@ -518,7 +729,9 @@ class _AddBookModalState extends State<AddBookModal> {
                       decoration: const InputDecoration(
                         labelText: 'ISBN *',
                         border: OutlineInputBorder(),
-                        focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.red)),
+                        focusedBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: Colors.red),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -527,7 +740,9 @@ class _AddBookModalState extends State<AddBookModal> {
                       decoration: const InputDecoration(
                         labelText: 'Kitob nomi *',
                         border: OutlineInputBorder(),
-                        focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.red)),
+                        focusedBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: Colors.red),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -536,7 +751,9 @@ class _AddBookModalState extends State<AddBookModal> {
                       decoration: const InputDecoration(
                         labelText: 'Muallifi',
                         border: OutlineInputBorder(),
-                        focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.red)),
+                        focusedBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: Colors.red),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -545,7 +762,9 @@ class _AddBookModalState extends State<AddBookModal> {
                       decoration: const InputDecoration(
                         labelText: 'Janr',
                         border: OutlineInputBorder(),
-                        focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.red)),
+                        focusedBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: Colors.red),
+                        ),
                       ),
                       items: genres.map((String genre) {
                         return DropdownMenuItem<String>(
@@ -559,6 +778,28 @@ class _AddBookModalState extends State<AddBookModal> {
                         });
                       },
                     ),
+                    const SizedBox(height: 8),
+                    CheckboxListTile(
+                      contentPadding: EdgeInsets.zero,
+                      value: _hasMultipleCopies,
+                      title: const Text('1 tadan ko\'p bo\'lsa'),
+                      controlAffinity: ListTileControlAffinity.leading,
+                      onChanged: (value) {
+                        setState(() => _hasMultipleCopies = value ?? false);
+                      },
+                    ),
+                    if (_hasMultipleCopies) ...[
+                      const SizedBox(height: 4),
+                      TextField(
+                        controller: _countController,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                          labelText: 'Kitoblar soni',
+                          prefixIcon: Icon(Icons.numbers_rounded),
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 20),
                     SizedBox(
                       width: double.infinity,
@@ -567,11 +808,17 @@ class _AddBookModalState extends State<AddBookModal> {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.red,
                           padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
                         child: Text(
                           widget.docId == null ? 'Qo\'shish' : 'Saqlash',
-                          style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                     ),
