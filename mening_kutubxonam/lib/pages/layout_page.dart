@@ -23,12 +23,18 @@ class _LayoutPageState extends State<LayoutPage> {
   final pages = const [HomePage(), BooksPage(), StudentsPage()];
 
   bool hasInternet = true;
+  int _notificationCount = 0;
+  bool _showNotificationBanner = false;
+  bool _hasReceivedNotificationSnapshot = false;
+  StreamSubscription<QuerySnapshot>? _notificationsSubscription;
+  Timer? _notificationBannerTimer;
   late StreamSubscription<List<ConnectivityResult>> _connectivitySubscription;
 
   @override
   void initState() {
     super.initState();
     _checkInitialInternet();
+    _listenToNotifications();
     _connectivitySubscription = Connectivity().onConnectivityChanged.listen((
       List<ConnectivityResult> results,
     ) {
@@ -39,7 +45,48 @@ class _LayoutPageState extends State<LayoutPage> {
   @override
   void dispose() {
     _connectivitySubscription.cancel();
+    _notificationsSubscription?.cancel();
+    _notificationBannerTimer?.cancel();
     super.dispose();
+  }
+
+  void _listenToNotifications() {
+    _notificationsSubscription = userFirestore
+        .collection('borrowed_books')
+        .where('status', isEqualTo: 'active')
+        .snapshots()
+        .listen((snapshot) {
+          final now = DateTime.now();
+          final overdueCount = snapshot.docs.where((document) {
+            final data = document.data();
+            final dueDate = _readNotificationDate(data['end_date']);
+            return dueDate != null && dueDate.isBefore(now);
+          }).length;
+
+          final shouldShowBanner = !_hasReceivedNotificationSnapshot
+              ? overdueCount > 0
+              : overdueCount > _notificationCount;
+          _hasReceivedNotificationSnapshot = true;
+
+          if (!mounted) return;
+          setState(() => _notificationCount = overdueCount);
+          if (shouldShowBanner) _showNotificationToast();
+        });
+  }
+
+  void _showNotificationToast() {
+    _notificationBannerTimer?.cancel();
+    if (!mounted) return;
+    setState(() => _showNotificationBanner = true);
+    _notificationBannerTimer = Timer(const Duration(milliseconds: 3000), () {
+      if (mounted) setState(() => _showNotificationBanner = false);
+    });
+  }
+
+  DateTime? _readNotificationDate(dynamic value) {
+    if (value is Timestamp) return value.toDate();
+    if (value is DateTime) return value;
+    return null;
   }
 
   Future<void> _checkInitialInternet() async {
@@ -131,7 +178,29 @@ class _LayoutPageState extends State<LayoutPage> {
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const NotificationsPage()),
             ),
-            icon: const Icon(Icons.notifications_none_rounded),
+            icon: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                const Icon(Icons.notifications_none_rounded),
+                if (_notificationCount > 0)
+                  Positioned(
+                    top: -2,
+                    right: -3,
+                    child: Container(
+                      width: 9,
+                      height: 9,
+                      decoration: BoxDecoration(
+                        color: const Color(0xffc62828),
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: const Color(0xfffff0f0),
+                          width: 1.5,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
             tooltip: 'Bildirishnomalar',
             style: IconButton.styleFrom(
               backgroundColor: const Color(0xfffff0f0),
@@ -151,7 +220,42 @@ class _LayoutPageState extends State<LayoutPage> {
           const SizedBox(width: 8),
         ],
       ),
-      body: IndexedStack(index: index, children: pages),
+      body: Stack(
+        children: [
+          IndexedStack(index: index, children: pages),
+          Positioned(
+            top: 10,
+            left: 16,
+            right: 16,
+            child: IgnorePointer(
+              ignoring: true,
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 220),
+                transitionBuilder: (child, animation) {
+                  return FadeTransition(
+                    opacity: animation,
+                    child: SlideTransition(
+                      position: Tween<Offset>(
+                        begin: const Offset(0, -0.25),
+                        end: Offset.zero,
+                      ).animate(animation),
+                      child: child,
+                    ),
+                  );
+                },
+                child: _showNotificationBanner
+                    ? _NotificationBanner(
+                        key: const ValueKey('notification-banner'),
+                        count: _notificationCount,
+                      )
+                    : const SizedBox.shrink(
+                        key: ValueKey('empty-notification-banner'),
+                      ),
+              ),
+            ),
+          ),
+        ],
+      ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: index,
         onDestinationSelected: (value) => setState(() => index = value),
@@ -218,6 +322,61 @@ class _AppBrand extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _NotificationBanner extends StatelessWidget {
+  const _NotificationBanner({super.key, required this.count});
+
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      elevation: 8,
+      shadowColor: Colors.black26,
+      borderRadius: BorderRadius.circular(14),
+      color: Colors.white,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0xffffd6d6)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 34,
+              height: 34,
+              decoration: BoxDecoration(
+                color: const Color(0xffffe8e8),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(
+                Icons.notifications_active_rounded,
+                color: Color(0xffc62828),
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                '+$count xabar mavjud',
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            const Icon(
+              Icons.chevron_right_rounded,
+              color: Color(0xffc62828),
+              size: 20,
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

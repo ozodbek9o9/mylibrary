@@ -112,7 +112,7 @@ class NotificationsPage extends StatelessWidget {
               const SizedBox(height: 14),
               ...overdue.map((document) {
                 final data = document.data() as Map<String, dynamic>;
-                return _OverdueBookCard(data: data);
+                return _OverdueBookCard(borrowDocId: document.id, data: data);
               }),
             ],
           );
@@ -129,8 +129,9 @@ class NotificationsPage extends StatelessWidget {
 }
 
 class _OverdueBookCard extends StatelessWidget {
-  const _OverdueBookCard({required this.data});
+  const _OverdueBookCard({required this.borrowDocId, required this.data});
 
+  final String borrowDocId;
   final Map<String, dynamic> data;
 
   @override
@@ -245,9 +246,135 @@ class _OverdueBookCard extends StatelessWidget {
               ),
             ],
           ),
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () => _showReceiveConfirmation(
+                context,
+                studentName,
+                data['book_isbn']?.toString() ?? '',
+              ),
+              icon: const Icon(Icons.assignment_return_rounded, size: 19),
+              label: const Text('Qabul qilish'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: const Color(0xffc62828),
+                side: const BorderSide(color: Color(0xffc62828)),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );
+  }
+
+  Future<void> _showReceiveConfirmation(
+    BuildContext context,
+    String studentName,
+    String isbn,
+  ) async {
+    final shouldReceive = await showModalBottomSheet<bool>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Container(
+            height: 98,
+            padding: const EdgeInsets.fromLTRB(18, 12, 18, 10),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: const Color(0xffffeeee),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(
+                    Icons.assignment_return_rounded,
+                    color: Color(0xffc62828),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    '$studentName kitobni qaytardimi?',
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.pop(sheetContext, false),
+                  child: const Text(
+                    'Bekor qilish',
+                    style: TextStyle(color: Colors.black54),
+                  ),
+                ),
+                const SizedBox(width: 3),
+                FilledButton(
+                  onPressed: () => Navigator.pop(sheetContext, true),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xffc62828),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 13),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(11),
+                    ),
+                  ),
+                  child: const Text('Qabul qilish'),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    if (shouldReceive == true && context.mounted) {
+      await _receiveBook(context, isbn);
+    }
+  }
+
+  Future<void> _receiveBook(BuildContext context, String isbn) async {
+    try {
+      await userFirestore.collection('borrowed_books').doc(borrowDocId).update({
+        'status': 'returned',
+        'returned_date': FieldValue.serverTimestamp(),
+      });
+
+      final books = await userFirestore
+          .collection('books')
+          .where('isbn', isEqualTo: isbn)
+          .limit(1)
+          .get();
+      if (books.docs.isNotEmpty) {
+        final book = books.docs.first;
+        final bookData = book.data();
+        final total = (bookData['count'] as num?)?.toInt() ?? 1;
+        final available = (bookData['available_count'] as num?)?.toInt() ?? 0;
+        await book.reference.update({
+          'count': total,
+          'available_count': (available + 1).clamp(0, total),
+        });
+      }
+    } catch (error) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Xatolik: $error')));
+      }
+    }
   }
 
   String _initials(String name) {

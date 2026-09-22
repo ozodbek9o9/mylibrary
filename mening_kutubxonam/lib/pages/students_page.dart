@@ -230,71 +230,30 @@ class _StudentsPageState extends State<StudentsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[50],
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            const _StudentsHero(),
-            const SizedBox(height: 20),
-            if (selectedClasses.isEmpty)
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: () => _showAddClassModal(context),
-                  icon: const Icon(Icons.add, color: Colors.white),
-                  label: const Text(
-                    'Sinf qo\'shish',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.red,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                ),
-              )
-            else
-              Row(
-                children: [
-                  if (selectedClasses.length == 1)
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: () {
-                          String classId = selectedClasses.first;
-                          _showAddClassModal(
-                            context,
-                            docId: classId,
-                            initialName: classNames[classId],
-                          );
-                        },
-                        icon: const Icon(Icons.edit, color: Colors.white),
-                        label: const Text(
-                          'Tahrirlash',
-                          style: TextStyle(color: Colors.white),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blue,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                      ),
-                    ),
-                  if (selectedClasses.length == 1) const SizedBox(width: 10),
-                  Expanded(
+      body: RefreshIndicator(
+        onRefresh: _refreshStudents,
+        color: Colors.red,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              children: [
+                const _StudentsHero(),
+                const SizedBox(height: 20),
+                if (selectedClasses.isEmpty)
+                  SizedBox(
+                    width: double.infinity,
                     child: ElevatedButton.icon(
-                      onPressed: _deleteSelectedClasses,
-                      icon: const Icon(Icons.delete, color: Colors.white),
+                      onPressed: () => _showAddClassModal(context),
+                      icon: const Icon(Icons.add, color: Colors.white),
                       label: const Text(
-                        'O\'chirish',
-                        style: TextStyle(color: Colors.white),
+                        'Sinf qo\'shish',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.red,
@@ -304,43 +263,89 @@ class _StudentsPageState extends State<StudentsPage> {
                         ),
                       ),
                     ),
+                  )
+                else
+                  Row(
+                    children: [
+                      if (selectedClasses.length == 1)
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () {
+                              String classId = selectedClasses.first;
+                              _showAddClassModal(
+                                context,
+                                docId: classId,
+                                initialName: classNames[classId],
+                              );
+                            },
+                            icon: const Icon(Icons.edit, color: Colors.white),
+                            label: const Text(
+                              'Tahrirlash',
+                              style: TextStyle(color: Colors.white),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.blue,
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                          ),
+                        ),
+                      if (selectedClasses.length == 1)
+                        const SizedBox(width: 10),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: _deleteSelectedClasses,
+                          icon: const Icon(Icons.delete, color: Colors.white),
+                          label: const Text(
+                            'O\'chirish',
+                            style: TextStyle(color: Colors.white),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.red,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-            const SizedBox(height: 20),
-            Row(
-              children: [
-                const Text(
-                  'Mening sinflarim',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
-                ),
-                const Spacer(),
-                OutlinedButton.icon(
-                  onPressed: _isExportingPdf ? null : _exportStudentsPdf,
-                  icon: _isExportingPdf
-                      ? const SizedBox(
-                          width: 15,
-                          height: 15,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.download_rounded, size: 18),
-                  label: const Text('Yuklash'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.red,
-                    side: const BorderSide(color: Color(0xffffcaca)),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    const Text(
+                      'Mening sinflarim',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
-                  ),
+                    const Spacer(),
+                    OutlinedButton.icon(
+                      onPressed: _isExportingPdf ? null : _exportStudentsPdf,
+                      icon: _isExportingPdf
+                          ? const SizedBox(
+                              width: 15,
+                              height: 15,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.download_rounded, size: 18),
+                      label: const Text('Yuklash'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.red,
+                        side: const BorderSide(color: Color(0xffffcaca)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Expanded(
-              child: RefreshIndicator(
-                onRefresh: _refreshStudents,
-                color: Colors.red,
-                child: StreamBuilder<QuerySnapshot>(
+                const SizedBox(height: 10),
+                StreamBuilder<QuerySnapshot>(
                   key: ValueKey(_refreshKey),
                   stream: userFirestore
                       .collection('classes')
@@ -348,17 +353,17 @@ class _StudentsPageState extends State<StudentsPage> {
                       .snapshots(),
                   builder: (context, snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Center(
-                        child: CircularProgressIndicator(color: Colors.red),
+                      return const Padding(
+                        padding: EdgeInsets.all(40),
+                        child: Center(
+                          child: CircularProgressIndicator(color: Colors.red),
+                        ),
                       );
                     }
                     if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                      return ListView(
-                        physics: const AlwaysScrollableScrollPhysics(),
-                        children: const [
-                          SizedBox(height: 180),
-                          Center(child: Text("Hozircha sinflar yo'q.")),
-                        ],
+                      return const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 80),
+                        child: Center(child: Text("Hozircha sinflar yo'q.")),
                       );
                     }
 
@@ -375,12 +380,10 @@ class _StudentsPageState extends State<StudentsPage> {
                         return _compareClassNames(firstName, secondName);
                       });
 
-                    return ListView.builder(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      itemCount: docs.length,
-                      itemBuilder: (context, index) {
-                        var data = docs[index].data() as Map<String, dynamic>;
-                        String classId = docs[index].id;
+                    return Column(
+                      children: docs.map((doc) {
+                        var data = doc.data() as Map<String, dynamic>;
+                        String classId = doc.id;
                         String className = data['name'] ?? '';
                         classNames[classId] = className;
 
@@ -481,13 +484,13 @@ class _StudentsPageState extends State<StudentsPage> {
                             );
                           },
                         );
-                      },
+                      }).toList(),
                     );
                   },
                 ),
-              ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );

@@ -145,6 +145,18 @@ class _StudentHistoryPageState extends State<StudentHistoryPage> {
                           return _HistoryBookCard(
                             data:
                                 documents[index].data() as Map<String, dynamic>,
+                            onReceive: selectedTab == 1
+                                ? () => _confirmReceive(
+                                    documents[index].id,
+                                    (documents[index].data()
+                                                as Map<
+                                                  String,
+                                                  dynamic
+                                                >)['book_isbn']
+                                            ?.toString() ??
+                                        '',
+                                  )
+                                : null,
                           );
                         },
                       ),
@@ -160,6 +172,74 @@ class _StudentHistoryPageState extends State<StudentHistoryPage> {
     if (value is Timestamp) return value.toDate();
     if (value is DateTime) return value;
     return DateTime(1970);
+  }
+
+  Future<void> _confirmReceive(String borrowId, String isbn) async {
+    final confirmed = await showModalBottomSheet<bool>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => SafeArea(
+        child: Container(
+          height: 100,
+          padding: const EdgeInsets.fromLTRB(18, 12, 18, 10),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.assignment_return_rounded, color: Colors.red),
+              const SizedBox(width: 10),
+              const Expanded(
+                child: Text(
+                  'Kitobni qabul qilasizmi?',
+                  style: TextStyle(fontWeight: FontWeight.w700),
+                ),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(sheetContext, false),
+                child: const Text(
+                  'Bekor qilish',
+                  style: TextStyle(color: Colors.black54),
+                ),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(sheetContext, true),
+                style: FilledButton.styleFrom(backgroundColor: Colors.red),
+                child: const Text('Qabul qilish'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    try {
+      await userFirestore.collection('borrowed_books').doc(borrowId).update({
+        'status': 'returned',
+        'returned_date': FieldValue.serverTimestamp(),
+      });
+      final books = await userFirestore
+          .collection('books')
+          .where('isbn', isEqualTo: isbn)
+          .limit(1)
+          .get();
+      if (books.docs.isNotEmpty) {
+        final book = books.docs.first;
+        final data = book.data();
+        final total = (data['count'] as num?)?.toInt() ?? 1;
+        final available = (data['available_count'] as num?)?.toInt() ?? 0;
+        await book.reference.update({
+          'available_count': (available + 1).clamp(0, total),
+        });
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Xatolik: $error')));
+      }
+    }
   }
 }
 
@@ -272,9 +352,10 @@ class _HistoryTab extends StatelessWidget {
 }
 
 class _HistoryBookCard extends StatelessWidget {
-  const _HistoryBookCard({required this.data});
+  const _HistoryBookCard({required this.data, this.onReceive});
 
   final Map<String, dynamic> data;
+  final VoidCallback? onReceive;
 
   @override
   Widget build(BuildContext context) {
@@ -337,10 +418,19 @@ class _HistoryBookCard extends StatelessWidget {
               ],
             ),
           ),
-          Icon(
-            returned ? Icons.check_circle_rounded : Icons.schedule_rounded,
-            color: returned ? Colors.green : Colors.red,
-          ),
+          if (onReceive != null)
+            TextButton(
+              onPressed: onReceive,
+              child: const Text(
+                'Qabul qilish',
+                style: TextStyle(color: Colors.red, fontSize: 12),
+              ),
+            )
+          else
+            Icon(
+              returned ? Icons.check_circle_rounded : Icons.schedule_rounded,
+              color: returned ? Colors.green : Colors.red,
+            ),
         ],
       ),
     );

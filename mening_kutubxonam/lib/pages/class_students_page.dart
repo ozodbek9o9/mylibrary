@@ -300,8 +300,11 @@ class _ClassStudentsPageState extends State<ClassStudentsPage> {
                             ],
                           ),
                           trailing: ElevatedButton(
-                            onPressed: () =>
-                                _receiveBook(doc.id, data['book_isbn']),
+                            onPressed: () => _confirmReceiveBook(
+                              doc.id,
+                              data['book_isbn'],
+                              data['student_name']?.toString() ?? 'o\'quvchi',
+                            ),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.red,
                               shape: RoundedRectangleBorder(
@@ -511,6 +514,81 @@ class _ClassStudentsPageState extends State<ClassStudentsPage> {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text('Xatolik: $e')));
       }
+    }
+  }
+
+  Future<void> _confirmReceiveBook(
+    String borrowDocId,
+    String isbn,
+    String studentName,
+  ) async {
+    final shouldReceive = await showModalBottomSheet<bool>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Container(
+            height: 100,
+            padding: const EdgeInsets.fromLTRB(18, 12, 18, 10),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: const Color(0xffffeeee),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(
+                    Icons.assignment_return_rounded,
+                    color: Color(0xffc62828),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    '$studentName kitobni qaytardimi?',
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.pop(sheetContext, false),
+                  child: const Text(
+                    'Bekor qilish',
+                    style: TextStyle(color: Colors.black54),
+                  ),
+                ),
+                const SizedBox(width: 3),
+                FilledButton(
+                  onPressed: () => Navigator.pop(sheetContext, true),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xffc62828),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 13),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(11),
+                    ),
+                  ),
+                  child: const Text('Qabul qilish'),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    if (shouldReceive == true && mounted) {
+      _receiveBook(borrowDocId, isbn);
     }
   }
 
@@ -812,6 +890,26 @@ class _GiveBookModalState extends State<GiveBookModal> {
         .where('book_isbn', isEqualTo: bookIsbn)
         .where('status', isEqualTo: 'active')
         .get();
+
+    final alreadyBorrowed = activeBorrows.docs.any((document) {
+      final data = document.data();
+      return data['student_id']?.toString() == widget.studentId;
+    });
+
+    if (alreadyBorrowed) {
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Bu o\'quvchi ushbu kitobni hali qaytarmagan. '
+              'Qaytargandan keyin yana olishi mumkin.',
+            ),
+          ),
+        );
+      }
+      return;
+    }
 
     int activeCount = activeBorrows.docs.length;
 

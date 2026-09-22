@@ -330,6 +330,12 @@ class _ReadersChart extends StatelessWidget {
         ? 0
         : (values[index] / maxValue);
     final double barHeight = (heightRatio * 120).clamp(4.0, 120.0);
+    final double colorIntensity = heightRatio.clamp(0.15, 1.0);
+    final Color barColor = Color.lerp(
+      const Color(0xffffd6d6),
+      const Color(0xffc62828),
+      colorIntensity,
+    )!;
 
     return GestureDetector(
       onTap: () =>
@@ -347,9 +353,7 @@ class _ReadersChart extends StatelessWidget {
             Container(
               height: barHeight,
               decoration: BoxDecoration(
-                color: index == 0
-                    ? const Color(0xffc62828)
-                    : const Color(0xffff9c9c),
+                color: barColor,
                 borderRadius: const BorderRadius.vertical(
                   top: Radius.circular(6),
                   bottom: Radius.circular(6),

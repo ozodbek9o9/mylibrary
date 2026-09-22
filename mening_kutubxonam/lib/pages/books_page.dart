@@ -466,6 +466,25 @@ class _BooksPageState extends State<BooksPage> {
                                     title: Text(
                                       "Olingan: ${data['student_name']}",
                                     ),
+                                    trailing: TextButton.icon(
+                                      onPressed: () => _confirmReceiveBook(
+                                        docs[index].id,
+                                        isbn,
+                                        data['student_name']?.toString() ??
+                                            'o\'quvchi',
+                                      ),
+                                      icon: const Icon(
+                                        Icons.assignment_return_rounded,
+                                        size: 18,
+                                      ),
+                                      label: const Text('Qaytarib olish'),
+                                      style: TextButton.styleFrom(
+                                        foregroundColor: Colors.red,
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                        ),
+                                      ),
+                                    ),
                                   );
                                 },
                               ),
@@ -482,6 +501,113 @@ class _BooksPageState extends State<BooksPage> {
         );
       },
     );
+  }
+
+  Future<void> _confirmReceiveBook(
+    String borrowDocId,
+    String isbn,
+    String studentName,
+  ) async {
+    final shouldReceive = await showModalBottomSheet<bool>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Container(
+            height: 92,
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 10),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: const Color(0xffffeeee),
+                    borderRadius: BorderRadius.circular(13),
+                  ),
+                  child: const Icon(
+                    Icons.assignment_return_rounded,
+                    color: Colors.red,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    '$studentName kitobni qaytardimi?',
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.pop(sheetContext, false),
+                  child: const Text(
+                    'Bekor qilish',
+                    style: TextStyle(color: Colors.black54),
+                  ),
+                ),
+                const SizedBox(width: 4),
+                FilledButton(
+                  onPressed: () => Navigator.pop(sheetContext, true),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: Colors.red,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(11),
+                    ),
+                  ),
+                  child: const Text('Olish'),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    if (shouldReceive == true) {
+      await _receiveBook(borrowDocId, isbn);
+    }
+  }
+
+  Future<void> _receiveBook(String borrowDocId, String isbn) async {
+    await showLoading(context);
+    try {
+      await userFirestore.collection('borrowed_books').doc(borrowDocId).update({
+        'status': 'returned',
+        'returned_date': FieldValue.serverTimestamp(),
+      });
+
+      final books = await userFirestore
+          .collection('books')
+          .where('isbn', isEqualTo: isbn)
+          .limit(1)
+          .get();
+      if (books.docs.isNotEmpty) {
+        final book = books.docs.first;
+        final data = book.data();
+        final total = (data['count'] as num?)?.toInt() ?? 1;
+        final available = (data['available_count'] as num?)?.toInt() ?? 0;
+        await book.reference.update({
+          'count': total,
+          'available_count': (available + 1).clamp(0, total),
+        });
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Xatolik: $error')));
+      }
+    }
   }
 }
 
