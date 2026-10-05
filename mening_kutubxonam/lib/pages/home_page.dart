@@ -146,8 +146,18 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surface = Theme.of(context).cardColor;
+    final border = Theme.of(context).dividerColor.withValues(alpha: 0.18);
+    final mutedText =
+        Theme.of(context).textTheme.bodyMedium?.color ?? Colors.grey;
+
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator(color: Colors.red));
+      return Center(
+        child: CircularProgressIndicator(
+          color: Theme.of(context).colorScheme.primary,
+        ),
+      );
     }
 
     final stats = [
@@ -185,14 +195,15 @@ class _HomePageState extends State<HomePage> {
       child: ListView(
         padding: const EdgeInsets.fromLTRB(20, 18, 20, 30),
         children: [
-          const Text(
+          Text(
             'Xush kelibsiz!',
-            style: TextStyle(fontSize: 25, fontWeight: FontWeight.w800),
+            style: Theme.of(context).textTheme.headlineSmall
+                ?.copyWith(fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 4),
           Text(
             'Kutubxona holati — avtomatik yangilanadi',
-            style: TextStyle(color: Colors.grey.shade600),
+            style: TextStyle(color: mutedText),
           ),
           const SizedBox(height: 20),
           GridView.builder(
@@ -210,9 +221,18 @@ class _HomePageState extends State<HomePage> {
               return Container(
                 padding: const EdgeInsets.all(15),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: surface,
                   borderRadius: BorderRadius.circular(18),
-                  border: Border.all(color: const Color(0xffeeeeee)),
+                  border: Border.all(color: border),
+                  boxShadow: [
+                    BoxShadow(
+                      color: isDark
+                          ? Colors.black.withValues(alpha: 0.18)
+                          : Colors.black.withValues(alpha: 0.03),
+                      blurRadius: 12,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -223,19 +243,14 @@ class _HomePageState extends State<HomePage> {
                       stat.$1,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: Colors.grey.shade600,
-                        fontSize: 12,
-                      ),
+                      style: TextStyle(color: mutedText, fontSize: 12),
                     ),
                     Text(
                       stat.$2,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w800,
-                      ),
+                      style: Theme.of(context).textTheme.titleMedium
+                          ?.copyWith(fontWeight: FontWeight.w800),
                     ),
                   ],
                 ),
@@ -252,22 +267,27 @@ class _HomePageState extends State<HomePage> {
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: surface,
                 borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: const Color(0xffeeeeee)),
+                border: Border.all(color: border),
               ),
               child: Column(
                 children: [
-                  const Icon(Icons.bar_chart, size: 48, color: Colors.grey),
+                  Icon(
+                    Icons.bar_chart,
+                    size: 48,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                   const SizedBox(height: 8),
-                  const Text(
+                  Text(
                     'Eng faol o\'quvchilar',
-                    style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+                    style: Theme.of(context).textTheme.titleMedium
+                        ?.copyWith(fontWeight: FontWeight.w800),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     'Bu oy hali hech kimga kitob berilmagan',
-                    style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
+                    style: TextStyle(color: mutedText, fontSize: 13),
                   ),
                 ],
               ),
@@ -290,24 +310,42 @@ class _ReadersChart extends StatelessWidget {
       if (v > maxValue) maxValue = v;
     }
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surface = Theme.of(context).cardColor;
+    final border = Theme.of(context).dividerColor.withValues(alpha: 0.18);
+
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 18, 14, 14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: surface,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xffeeeeee)),
+        border: Border.all(color: border),
+        boxShadow: [
+          BoxShadow(
+            color: isDark
+                ? Colors.black.withValues(alpha: 0.18)
+                : Colors.black.withValues(alpha: 0.03),
+            blurRadius: 12,
+            offset: const Offset(0, 3),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Eng faol o\'quvchilar',
-            style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+            style: Theme.of(context).textTheme.titleMedium
+                ?.copyWith(fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 3),
-          const Text(
+          Text(
             'Joriy oy hisoboti — Top 10',
-            style: TextStyle(color: Colors.grey, fontSize: 12),
+            style: TextStyle(
+              color:
+                  Theme.of(context).textTheme.bodySmall?.color ?? Colors.grey,
+              fontSize: 12,
+            ),
           ),
           const SizedBox(height: 20),
           SizedBox(
@@ -347,7 +385,11 @@ class _ReadersChart extends StatelessWidget {
           children: [
             Text(
               '${values[index].round()}',
-              style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700),
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+                color: Theme.of(context).textTheme.bodyMedium?.color,
+              ),
             ),
             const SizedBox(height: 4),
             Container(
@@ -363,10 +405,11 @@ class _ReadersChart extends StatelessWidget {
             const SizedBox(height: 6),
             Text(
               '${index + 1}',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 10,
                 fontWeight: FontWeight.bold,
-                color: Colors.grey,
+                color:
+                    Theme.of(context).textTheme.bodySmall?.color ?? Colors.grey,
               ),
             ),
           ],
@@ -384,6 +427,7 @@ class _ReadersChart extends StatelessWidget {
       builder: (_) => Container(
         height: 120,
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+        color: Theme.of(context).canvasColor,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.center,

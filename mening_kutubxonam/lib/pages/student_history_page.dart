@@ -24,8 +24,12 @@ class _StudentHistoryPageState extends State<StudentHistoryPage> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final border = Theme.of(context).dividerColor.withValues(alpha: 0.18);
+    final muted = Theme.of(context).textTheme.bodyMedium?.color ?? Colors.grey;
+
     return Scaffold(
-      backgroundColor: const Color(0xfff7f7f8),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         leading: IconButton.filledTonal(
           onPressed: () => Navigator.of(context).pop(),
@@ -89,19 +93,18 @@ class _StudentHistoryPageState extends State<StudentHistoryPage> {
                           setState(() => searchQuery = value.toLowerCase()),
                       decoration: InputDecoration(
                         hintText: 'Qidirish (kitob nomi)...',
-                        prefixIcon: const Icon(
-                          Icons.search,
-                          color: Colors.grey,
-                        ),
+                        prefixIcon: Icon(Icons.search, color: muted),
                         filled: true,
-                        fillColor: Colors.white,
+                        fillColor: isDark
+                            ? const Color(0xff1a1a1a)
+                            : Colors.white,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(14),
-                          borderSide: BorderSide(color: Colors.grey.shade200),
+                          borderSide: BorderSide(color: border),
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(14),
-                          borderSide: BorderSide(color: Colors.grey.shade200),
+                          borderSide: BorderSide(color: border),
                         ),
                       ),
                     ),
@@ -135,7 +138,7 @@ class _StudentHistoryPageState extends State<StudentHistoryPage> {
                           selectedTab == 0
                               ? 'Qabul qilingan kitoblar yo\'q'
                               : 'Hali qaytarilmagan kitoblar yo\'q',
-                          style: TextStyle(color: Colors.grey.shade600),
+                          style: TextStyle(color: muted),
                         ),
                       )
                     : ListView.builder(
@@ -182,13 +185,19 @@ class _StudentHistoryPageState extends State<StudentHistoryPage> {
         child: Container(
           height: 100,
           padding: const EdgeInsets.fromLTRB(18, 12, 18, 10),
-          decoration: const BoxDecoration(
-            color: Colors.white,
+          decoration: BoxDecoration(
+            color: Theme.of(sheetContext).cardColor,
             borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+            border: Border.all(
+              color: Theme.of(sheetContext).dividerColor.withValues(alpha: 0.3),
+            ),
           ),
           child: Row(
             children: [
-              const Icon(Icons.assignment_return_rounded, color: Colors.red),
+              Icon(
+                Icons.assignment_return_rounded,
+                color: Theme.of(sheetContext).colorScheme.primary,
+              ),
               const SizedBox(width: 10),
               const Expanded(
                 child: Text(
@@ -198,9 +207,11 @@ class _StudentHistoryPageState extends State<StudentHistoryPage> {
               ),
               TextButton(
                 onPressed: () => Navigator.pop(sheetContext, false),
-                child: const Text(
+                child: Text(
                   'Bekor qilish',
-                  style: TextStyle(color: Colors.black54),
+                  style: TextStyle(
+                    color: Theme.of(sheetContext).colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ),
               FilledButton(
@@ -367,13 +378,26 @@ class _HistoryBookCard extends StatelessWidget {
         ? null
         : _dateFrom(data['returned_date']);
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surface = Theme.of(context).cardColor;
+    final border = Theme.of(context).dividerColor.withValues(alpha: 0.18);
+
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: border),
+        boxShadow: [
+          BoxShadow(
+            color: isDark
+                ? Colors.black.withValues(alpha: 0.18)
+                : Colors.black.withValues(alpha: 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Row(
         children: [

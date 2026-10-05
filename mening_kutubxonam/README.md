@@ -1,17 +1,21 @@
-# mening_kutubxonam
+# Mening Kutubxonam
 
-A new Flutter project.
+## Windows uchun o'rnatuvchi tayyorlash
 
-## Getting Started
+Windows kompyuterida Flutter va Visual Studio C++ build tools o'rnatilgan bo'lishi kerak.
 
-This project is a starting point for a Flutter application.
+1. Loyiha papkasida release build yarating:
 
-A few resources to get you started if this is your first Flutter project:
+	```powershell
+	flutter build windows --release
+	```
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+2. Inno Setup 6 ni o'rnating va `installer.iss` faylini Inno Setup Compiler'da ochib **Compile** bosing. Yoki terminalda:
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+	```powershell
+	ISCC.exe installer.iss
+	```
+
+3. Tayyor o'rnatuvchi `dist\Mening_Kutubxonam-Setup-1.0.0.exe` manzilida bo'ladi. Boshqa kompyuterga yuborishda faqat shu Setup faylini yuboring; `mening_kutubxonam.exe`ning o'zini alohida yubormang.
+
+O'rnatuvchi ilovaning `.dll` fayllari va `data` papkasini birga joylaydi, desktop va Start menyuga yorliq qo'shadi. Yangi Windows kompyuterida internet ulanishi va Microsoft Visual C++ Redistributable talab qilinishi mumkin.

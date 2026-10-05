@@ -35,8 +35,13 @@ class _BooksPageState extends State<BooksPage> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surface = Theme.of(context).cardColor;
+    final border = Theme.of(context).dividerColor.withValues(alpha: 0.18);
+    final muted = Theme.of(context).textTheme.bodyMedium?.color ?? Colors.grey;
+
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -53,7 +58,7 @@ class _BooksPageState extends State<BooksPage> {
               alignment: Alignment.centerLeft,
               child: Text(
                 'Kutubxonadagi barcha kitoblar',
-                style: TextStyle(color: Colors.grey),
+                style: TextStyle(color: muted),
               ),
             ),
             const SizedBox(height: 20),
@@ -70,16 +75,18 @@ class _BooksPageState extends State<BooksPage> {
                     },
                     decoration: InputDecoration(
                       hintText: 'Qidirish (Nomi yoki ISBN)...',
-                      prefixIcon: const Icon(Icons.search, color: Colors.grey),
+                      prefixIcon: Icon(Icons.search, color: muted),
                       filled: true,
-                      fillColor: Colors.white,
+                      fillColor: isDark
+                          ? const Color(0xff1a1a1a)
+                          : Colors.white,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.grey.shade300),
+                        borderSide: BorderSide(color: border),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.grey.shade300),
+                        borderSide: BorderSide(color: border),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -136,12 +143,14 @@ class _BooksPageState extends State<BooksPage> {
             Expanded(
               child: Container(
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: surface,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.grey.shade200),
+                  border: Border.all(color: border),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.05),
+                      color: isDark
+                          ? Colors.black.withValues(alpha: 0.24)
+                          : Colors.black.withValues(alpha: 0.05),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
@@ -385,119 +394,136 @@ class _BooksPageState extends State<BooksPage> {
   void _showBookBorrowers(String isbn, String title) {
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (context) {
-        return Container(
-          height: 270,
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.red,
-                ),
+        return StreamBuilder<QuerySnapshot>(
+          stream: userFirestore
+              .collection('borrowed_books')
+              .where('book_isbn', isEqualTo: isbn)
+              .where('status', isEqualTo: 'active')
+              .snapshots(),
+          builder: (context, snapshot) {
+            final docs = snapshot.data?.docs ?? [];
+            final modalHeight =
+                snapshot.connectionState == ConnectionState.waiting
+                ? 150.0
+                : docs.isEmpty
+                ? 150.0
+                : 270.0;
+
+            return Container(
+              width: double.infinity,
+              height: modalHeight,
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.red,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Expanded(
+                    child: snapshot.connectionState == ConnectionState.waiting
+                        ? const Center(
+                            child: CircularProgressIndicator(color: Colors.red),
+                          )
+                        : FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                            future: userFirestore
+                                .collection('books')
+                                .where('isbn', isEqualTo: isbn)
+                                .limit(1)
+                                .get()
+                                .then((result) => result.docs.first),
+                            builder: (context, bookSnapshot) {
+                              final bookData = bookSnapshot.data?.data() ?? {};
+                              final total =
+                                  (bookData['count'] as num?)?.toInt() ?? 1;
+                              final available =
+                                  (bookData['available_count'] as num?)
+                                      ?.toInt() ??
+                                  total - docs.length;
+                              final status = docs.isEmpty
+                                  ? 'Kitob band emas'
+                                  : available <= 0
+                                  ? total == 1
+                                        ? 'Kitob band'
+                                        : 'Barcha kitoblar band'
+                                  : 'Jami: $total ta | Band: ${docs.length} ta | Qolgan: $available ta';
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    status,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Expanded(
+                                    child: docs.isEmpty
+                                        ? const SizedBox.shrink()
+                                        : ListView.builder(
+                                            itemCount: docs.length,
+                                            itemBuilder: (context, index) {
+                                              final data =
+                                                  docs[index].data()
+                                                      as Map<String, dynamic>;
+                                              return ListTile(
+                                                contentPadding: EdgeInsets.zero,
+                                                leading: const Icon(
+                                                  Icons.person,
+                                                  color: Colors.red,
+                                                ),
+                                                title: Text(
+                                                  "Olingan: ${data['student_name']}",
+                                                ),
+                                                trailing: TextButton.icon(
+                                                  onPressed: () =>
+                                                      _confirmReceiveBook(
+                                                        docs[index].id,
+                                                        isbn,
+                                                        data['student_name']
+                                                                ?.toString() ??
+                                                            'o\'quvchi',
+                                                      ),
+                                                  icon: const Icon(
+                                                    Icons
+                                                        .assignment_return_rounded,
+                                                    size: 18,
+                                                  ),
+                                                  label: const Text(
+                                                    'Qaytarib olish',
+                                                  ),
+                                                  style: TextButton.styleFrom(
+                                                    foregroundColor: Colors.red,
+                                                    padding:
+                                                        const EdgeInsets.symmetric(
+                                                          horizontal: 8,
+                                                        ),
+                                                  ),
+                                                ),
+                                              );
+                                            },
+                                          ),
+                                  ),
+                                ],
+                              );
+                            },
+                          ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 16),
-              Expanded(
-                child: StreamBuilder<QuerySnapshot>(
-                  stream: userFirestore
-                      .collection('borrowed_books')
-                      .where('book_isbn', isEqualTo: isbn)
-                      .where('status', isEqualTo: 'active')
-                      .snapshots(),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Center(
-                        child: CircularProgressIndicator(color: Colors.red),
-                      );
-                    }
-                    var docs = snapshot.data!.docs;
-                    return FutureBuilder<
-                      DocumentSnapshot<Map<String, dynamic>>
-                    >(
-                      future: userFirestore
-                          .collection('books')
-                          .where('isbn', isEqualTo: isbn)
-                          .limit(1)
-                          .get()
-                          .then((result) => result.docs.first),
-                      builder: (context, bookSnapshot) {
-                        final bookData = bookSnapshot.data?.data() ?? {};
-                        final total = (bookData['count'] as num?)?.toInt() ?? 1;
-                        final available =
-                            (bookData['available_count'] as num?)?.toInt() ??
-                            total - docs.length;
-                        final status = docs.isEmpty
-                            ? 'Kitob band emas'
-                            : available <= 0
-                            ? total == 1
-                                  ? 'Kitob band'
-                                  : 'Barcha kitoblar band'
-                            : 'Jami: $total ta | Band: ${docs.length} ta | Qolgan: $available ta';
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              status,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Expanded(
-                              child: ListView.builder(
-                                itemCount: docs.length,
-                                itemBuilder: (context, index) {
-                                  final data =
-                                      docs[index].data()
-                                          as Map<String, dynamic>;
-                                  return ListTile(
-                                    contentPadding: EdgeInsets.zero,
-                                    leading: const Icon(
-                                      Icons.person,
-                                      color: Colors.red,
-                                    ),
-                                    title: Text(
-                                      "Olingan: ${data['student_name']}",
-                                    ),
-                                    trailing: TextButton.icon(
-                                      onPressed: () => _confirmReceiveBook(
-                                        docs[index].id,
-                                        isbn,
-                                        data['student_name']?.toString() ??
-                                            'o\'quvchi',
-                                      ),
-                                      icon: const Icon(
-                                        Icons.assignment_return_rounded,
-                                        size: 18,
-                                      ),
-                                      label: const Text('Qaytarib olish'),
-                                      style: TextButton.styleFrom(
-                                        foregroundColor: Colors.red,
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 8,
-                                        ),
-                                      ),
-                                    ),
-                                  );
-                                },
-                              ),
-                            ),
-                          ],
-                        );
-                      },
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
+            );
+          },
         );
       },
     );
@@ -517,9 +543,13 @@ class _BooksPageState extends State<BooksPage> {
           child: Container(
             height: 92,
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 10),
-            decoration: const BoxDecoration(
-              color: Colors.white,
+            decoration: BoxDecoration(
+              color: Theme.of(sheetContext).cardColor,
               borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+              border: Border.all(
+                color: Theme.of(sheetContext).dividerColor
+                    .withValues(alpha: 0.3),
+              ),
             ),
             child: Row(
               children: [
@@ -527,12 +557,14 @@ class _BooksPageState extends State<BooksPage> {
                   width: 42,
                   height: 42,
                   decoration: BoxDecoration(
-                    color: const Color(0xffffeeee),
+                    color: Theme.of(sheetContext).brightness == Brightness.dark
+                        ? const Color(0xff402326)
+                        : const Color(0xffffeeee),
                     borderRadius: BorderRadius.circular(13),
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.assignment_return_rounded,
-                    color: Colors.red,
+                    color: Theme.of(sheetContext).colorScheme.primary,
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -549,9 +581,13 @@ class _BooksPageState extends State<BooksPage> {
                 ),
                 TextButton(
                   onPressed: () => Navigator.pop(sheetContext, false),
-                  child: const Text(
+                  child: Text(
                     'Bekor qilish',
-                    style: TextStyle(color: Colors.black54),
+                    style: TextStyle(
+                      color: Theme.of(sheetContext)
+                          .colorScheme
+                          .onSurfaceVariant,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 4),
@@ -625,6 +661,7 @@ class _AddBookModalState extends State<AddBookModal> {
   bool _isScanIntro = true;
   bool _isScanning = false;
   bool _hasMultipleCopies = false;
+  bool _isSaving = false;
   MobileScannerController cameraController = MobileScannerController(
     detectionSpeed: DetectionSpeed.noDuplicates,
   );
@@ -673,31 +710,17 @@ class _AddBookModalState extends State<AddBookModal> {
   }
 
   void _saveBook() async {
+    if (_isSaving) return;
+
+    final scaffoldMessenger = ScaffoldMessenger.maybeOf(context);
+
     if (_isbnController.text.isEmpty || _titleController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      scaffoldMessenger?.showSnackBar(
         const SnackBar(
           content: Text('Iltimos, barcha majburiy maydonlarni to\'ldiring!'),
         ),
       );
       return;
-    }
-
-    // Check for duplicate ISBN if adding new
-    if (widget.docId == null) {
-      var existing = await userFirestore
-          .collection('books')
-          .where('isbn', isEqualTo: _isbnController.text.trim())
-          .get();
-      if (existing.docs.isNotEmpty) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Ushbu ISBN ga ega kitob allaqachon mavjud!'),
-            ),
-          );
-        }
-        return;
-      }
     }
 
     Map<String, dynamic> bookData = {
@@ -711,7 +734,7 @@ class _AddBookModalState extends State<AddBookModal> {
         ? int.tryParse(_countController.text.trim()) ?? 0
         : 1;
     if (count < 1) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      scaffoldMessenger?.showSnackBar(
         const SnackBar(content: Text('Kitob soni kamida 1 bo\'lishi kerak.')),
       );
       return;
@@ -726,7 +749,7 @@ class _AddBookModalState extends State<AddBookModal> {
           oldCount;
       final borrowed = oldCount - oldAvailable;
       if (count < borrowed) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        scaffoldMessenger?.showSnackBar(
           SnackBar(content: Text('Kamida $borrowed ta nusxa bo\'lishi kerak.')),
         );
         return;
@@ -734,9 +757,29 @@ class _AddBookModalState extends State<AddBookModal> {
       bookData['available_count'] = count - borrowed;
     }
 
-    if (mounted) await showLoading(context);
+    if (!mounted) return;
+    setState(() => _isSaving = true);
 
     try {
+      if (widget.docId == null) {
+        final existing = await userFirestore
+            .collection('books')
+            .where('isbn', isEqualTo: _isbnController.text.trim())
+            .limit(1)
+            .get();
+        if (existing.docs.isNotEmpty) {
+          if (mounted) {
+            scaffoldMessenger?.showSnackBar(
+              const SnackBar(
+                content: Text('Ushbu ISBN ga ega kitob allaqachon mavjud!'),
+              ),
+            );
+            setState(() => _isSaving = false);
+          }
+          return;
+        }
+      }
+
       if (widget.docId != null) {
         await userFirestore
             .collection('books')
@@ -758,6 +801,7 @@ class _AddBookModalState extends State<AddBookModal> {
             ),
           ),
         );
+        setState(() => _isSaving = false);
       }
     }
   }
@@ -930,7 +974,7 @@ class _AddBookModalState extends State<AddBookModal> {
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
-                        onPressed: _saveBook,
+                        onPressed: _isSaving ? null : _saveBook,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.red,
                           padding: const EdgeInsets.symmetric(vertical: 16),
@@ -938,14 +982,23 @@ class _AddBookModalState extends State<AddBookModal> {
                             borderRadius: BorderRadius.circular(12),
                           ),
                         ),
-                        child: Text(
-                          widget.docId == null ? 'Qo\'shish' : 'Saqlash',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+                        child: _isSaving
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : Text(
+                                widget.docId == null ? 'Qo\'shish' : 'Saqlash',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
                       ),
                     ),
                   ],

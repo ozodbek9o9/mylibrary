@@ -10,8 +10,10 @@ class NotificationsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: const Color(0xfff7f7f8),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text(
           'Bildirishnomalar',
@@ -67,9 +69,15 @@ class NotificationsPage extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(18),
                 decoration: BoxDecoration(
-                  color: const Color(0xfffff3f3),
+                  color: isDark
+                      ? const Color(0xff2a1c1c)
+                      : const Color(0xfffff3f3),
                   borderRadius: BorderRadius.circular(18),
-                  border: Border.all(color: const Color(0xffffd5d5)),
+                  border: Border.all(
+                    color: isDark
+                        ? Colors.red.withValues(alpha: 0.35)
+                        : const Color(0xffffd5d5),
+                  ),
                 ),
                 child: Row(
                   children: [
@@ -91,17 +99,19 @@ class NotificationsPage extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
+                          Text(
                             'Qaytarilishi kechikkan kitoblar',
-                            style: TextStyle(
-                              fontSize: 17,
-                              fontWeight: FontWeight.w800,
-                            ),
+                            style: Theme.of(context).textTheme.titleMedium
+                                ?.copyWith(fontWeight: FontWeight.w800),
                           ),
                           const SizedBox(height: 4),
                           Text(
                             '${overdue.length} ta kitob muddatidan o\'tgan',
-                            style: TextStyle(color: Colors.red.shade700),
+                            style: TextStyle(
+                              color: isDark
+                                  ? Colors.red.shade300
+                                  : Colors.red.shade700,
+                            ),
                           ),
                         ],
                       ),
@@ -141,16 +151,22 @@ class _OverdueBookCard extends StatelessWidget {
     final bookTitle = (data['book_title'] ?? 'Noma\'lum kitob').toString();
     final dueDate = (data['end_date'] as Timestamp).toDate();
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surface = Theme.of(context).cardColor;
+    final border = Theme.of(context).dividerColor.withValues(alpha: 0.18);
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: border),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
+            color: isDark
+                ? Colors.black.withValues(alpha: 0.28)
+                : Colors.black.withValues(alpha: 0.04),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -176,9 +192,14 @@ class _OverdueBookCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'O\'quvchi',
-                      style: TextStyle(color: Colors.grey, fontSize: 12),
+                      style: TextStyle(
+                        color:
+                            Theme.of(context).textTheme.bodySmall?.color ??
+                            Colors.grey,
+                        fontSize: 12,
+                      ),
                     ),
                     const SizedBox(height: 2),
                     Text(
@@ -285,9 +306,13 @@ class _OverdueBookCard extends StatelessWidget {
           child: Container(
             height: 98,
             padding: const EdgeInsets.fromLTRB(18, 12, 18, 10),
-            decoration: const BoxDecoration(
-              color: Colors.white,
+            decoration: BoxDecoration(
+              color: Theme.of(sheetContext).cardColor,
               borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+              border: Border.all(
+                color: Theme.of(sheetContext).dividerColor
+                    .withValues(alpha: 0.3),
+              ),
             ),
             child: Row(
               children: [
@@ -295,12 +320,14 @@ class _OverdueBookCard extends StatelessWidget {
                   width: 40,
                   height: 40,
                   decoration: BoxDecoration(
-                    color: const Color(0xffffeeee),
+                    color: Theme.of(sheetContext).brightness == Brightness.dark
+                        ? const Color(0xff402326)
+                        : const Color(0xffffeeee),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.assignment_return_rounded,
-                    color: Color(0xffc62828),
+                    color: Theme.of(sheetContext).colorScheme.primary,
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -317,9 +344,13 @@ class _OverdueBookCard extends StatelessWidget {
                 ),
                 TextButton(
                   onPressed: () => Navigator.pop(sheetContext, false),
-                  child: const Text(
+                  child: Text(
                     'Bekor qilish',
-                    style: TextStyle(color: Colors.black54),
+                    style: TextStyle(
+                      color: Theme.of(sheetContext)
+                          .colorScheme
+                          .onSurfaceVariant,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 3),

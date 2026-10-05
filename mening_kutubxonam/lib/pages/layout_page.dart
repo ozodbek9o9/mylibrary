@@ -8,8 +8,8 @@ import 'books_page.dart';
 import 'home_page.dart';
 import 'students_page.dart';
 import 'notifications_page.dart';
+import 'settings_page.dart';
 import '../services/user_firestore.dart';
-import '../services/auth_service.dart';
 
 class LayoutPage extends StatefulWidget {
   const LayoutPage({super.key});
@@ -122,9 +122,11 @@ class _LayoutPageState extends State<LayoutPage> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     if (!hasInternet) {
       return Scaffold(
-        backgroundColor: Colors.white,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -167,11 +169,16 @@ class _LayoutPageState extends State<LayoutPage> {
         actions: [
           IconButton.filledTonal(
             onPressed: _showNewAcademicYearModal,
-            icon: const Icon(Icons.change_circle_outlined, color: Colors.red),
+            icon: Icon(
+              Icons.change_circle_outlined,
+              color: isDark ? const Color(0xffff8a80) : Colors.red,
+            ),
             tooltip: 'Yangi o\'quv yili',
             style: IconButton.styleFrom(
-              backgroundColor: const Color(0xfffff0f0),
-              foregroundColor: Colors.red,
+              backgroundColor: isDark
+                  ? const Color(0xff342124)
+                  : const Color(0xfffff0f0),
+              foregroundColor: isDark ? const Color(0xffff8a80) : Colors.red,
             ),
           ),
           IconButton.filledTonal(
@@ -193,7 +200,9 @@ class _LayoutPageState extends State<LayoutPage> {
                         color: const Color(0xffc62828),
                         shape: BoxShape.circle,
                         border: Border.all(
-                          color: const Color(0xfffff0f0),
+                          color: isDark
+                              ? const Color(0xff1a1a1a)
+                              : const Color(0xfffff0f0),
                           width: 1.5,
                         ),
                       ),
@@ -203,14 +212,19 @@ class _LayoutPageState extends State<LayoutPage> {
             ),
             tooltip: 'Bildirishnomalar',
             style: IconButton.styleFrom(
-              backgroundColor: const Color(0xfffff0f0),
-              foregroundColor: const Color(0xffc62828),
+              backgroundColor: isDark
+                  ? const Color(0xff342124)
+                  : const Color(0xfffff0f0),
+              foregroundColor: isDark
+                  ? const Color(0xffff8a80)
+                  : const Color(0xffc62828),
             ),
           ),
           IconButton.filledTonal(
-            onPressed: _signOut,
-            icon: const Icon(Icons.logout_rounded),
-            tooltip: 'Chiqish',
+            onPressed: () => Navigator.of(context)
+                .push(MaterialPageRoute(builder: (_) => const SettingsPage())),
+            icon: const Icon(Icons.settings_rounded),
+            tooltip: 'Sozlamalar',
             style: IconButton.styleFrom(
               backgroundColor: const Color(0xffc62828),
               foregroundColor: Colors.white,
@@ -259,7 +273,6 @@ class _LayoutPageState extends State<LayoutPage> {
       bottomNavigationBar: NavigationBar(
         selectedIndex: index,
         onDestinationSelected: (value) => setState(() => index = value),
-        indicatorColor: const Color(0xffffe2e2),
         destinations: const [
           NavigationDestination(
             icon: Icon(Icons.grid_view_outlined),
@@ -279,29 +292,6 @@ class _LayoutPageState extends State<LayoutPage> {
         ],
       ),
     );
-  }
-
-  Future<void> _signOut() async {
-    final shouldSignOut = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Chiqishni tasdiqlaysizmi?'),
-        content: const Text('Akkauntdan chiqib, login sahifasiga qaytasiz.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Bekor qilish'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Chiqish'),
-          ),
-        ],
-      ),
-    );
-    if (shouldSignOut != true) return;
-    await AuthService.instance.signOut();
   }
 }
 
@@ -333,16 +323,22 @@ class _NotificationBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Material(
       elevation: 8,
       shadowColor: Colors.black26,
       borderRadius: BorderRadius.circular(14),
-      color: Colors.white,
+      color: Theme.of(context).cardColor,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: const Color(0xffffd6d6)),
+          border: Border.all(
+            color: isDark
+                ? Colors.red.withValues(alpha: 0.3)
+                : const Color(0xffffd6d6),
+          ),
         ),
         child: Row(
           children: [
@@ -350,7 +346,9 @@ class _NotificationBanner extends StatelessWidget {
               width: 34,
               height: 34,
               decoration: BoxDecoration(
-                color: const Color(0xffffe8e8),
+                color: isDark
+                    ? const Color(0xff402326)
+                    : const Color(0xffffe8e8),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: const Icon(

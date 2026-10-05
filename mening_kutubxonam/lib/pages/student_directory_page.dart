@@ -26,16 +26,23 @@ class _StudentDirectoryPageState extends State<StudentDirectoryPage> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: const Color(0xfff7f7f8),
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         leading: IconButton.filledTonal(
           onPressed: () => Navigator.of(context).pop(),
           icon: const Icon(Icons.arrow_back_rounded),
           tooltip: 'Ortga',
           style: IconButton.styleFrom(
-            backgroundColor: const Color(0xfffff0f0),
-            foregroundColor: const Color(0xffc62828),
+            backgroundColor: isDark
+                ? const Color(0xff342124)
+                : const Color(0xfffff0f0),
+            foregroundColor: isDark
+                ? const Color(0xffff8a80)
+                : const Color(0xffc62828),
           ),
         ),
         title: Column(
@@ -45,9 +52,12 @@ class _StudentDirectoryPageState extends State<StudentDirectoryPage> {
               '${widget.className} o\'quvchilari',
               style: const TextStyle(fontWeight: FontWeight.w800),
             ),
-            const Text(
+            Text(
               'Barcha ro\'yxatdagi o\'quvchilar',
-              style: TextStyle(fontSize: 11, color: Colors.grey),
+              style: TextStyle(
+                fontSize: 11,
+                color: theme.textTheme.bodySmall?.color,
+              ),
             ),
           ],
         ),
@@ -61,8 +71,12 @@ class _StudentDirectoryPageState extends State<StudentDirectoryPage> {
             icon: const Icon(Icons.menu_book_rounded),
             tooltip: 'Olingan kitoblar',
             style: IconButton.styleFrom(
-              backgroundColor: const Color(0xfffff0f0),
-              foregroundColor: const Color(0xffc62828),
+              backgroundColor: isDark
+                  ? const Color(0xff342124)
+                  : const Color(0xfffff0f0),
+              foregroundColor: isDark
+                  ? const Color(0xffff8a80)
+                  : const Color(0xffc62828),
             ),
           ),
           const SizedBox(width: 8),
@@ -112,14 +126,14 @@ class _StudentDirectoryPageState extends State<StudentDirectoryPage> {
                             ),
                             decoration: InputDecoration(
                               hintText: 'Qidirish (ism familiya)...',
-                              prefixIcon: const Icon(
+                              prefixIcon: Icon(
                                 Icons.search,
-                                color: Colors.grey,
+                                color: theme.colorScheme.onSurfaceVariant,
                               ),
                               filled: true,
-                              fillColor: Colors.white,
-                              border: _border(),
-                              enabledBorder: _border(),
+                              fillColor: theme.cardColor,
+                              border: _border(context),
+                              enabledBorder: _border(context),
                             ),
                           ),
                         ),
@@ -129,9 +143,15 @@ class _StudentDirectoryPageState extends State<StudentDirectoryPage> {
                           icon: const Icon(Icons.tune_rounded, size: 18),
                           label: const Text('Filter'),
                           style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.red,
+                            foregroundColor: isDark
+                                ? const Color(0xffff8a80)
+                                : Colors.red,
                             minimumSize: const Size(90, 54),
-                            side: const BorderSide(color: Color(0xffffcaca)),
+                            side: BorderSide(
+                              color: isDark
+                                  ? Colors.red.withValues(alpha: 0.35)
+                                  : const Color(0xffffcaca),
+                            ),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(14),
                             ),
@@ -192,9 +212,11 @@ class _StudentDirectoryPageState extends State<StudentDirectoryPage> {
         .toString();
   }
 
-  OutlineInputBorder _border() => OutlineInputBorder(
+  OutlineInputBorder _border(BuildContext context) => OutlineInputBorder(
     borderRadius: BorderRadius.circular(14),
-    borderSide: BorderSide(color: Colors.grey.shade200),
+    borderSide: BorderSide(
+      color: Theme.of(context).dividerColor.withValues(alpha: 0.35),
+    ),
   );
 
   void _showFilterSheet() {
@@ -238,76 +260,120 @@ class _StudentDirectoryPageState extends State<StudentDirectoryPage> {
         return SlideTransition(position: offset, child: child);
       },
       pageBuilder: (context, animation, secondaryAnimation) {
-        return SafeArea(
-          child: Align(
-            alignment: Alignment.topCenter,
-            child: Material(
-              type: MaterialType.transparency,
-              child: Container(
-                height: 200,
-                width: double.infinity,
-                margin: const EdgeInsets.only(top: 15, left: 12, right: 12),
-                padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.vertical(
-                    top: Radius.circular(16),
-                    bottom: Radius.circular(22),
+        var isSaving = false;
+        return StatefulBuilder(
+          builder: (context, setModalState) => SafeArea(
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: Material(
+                color: Theme.of(context).cardColor,
+                elevation: 18,
+                shadowColor: Colors.black.withValues(alpha: 0.3),
+                child: Container(
+                  height: 200,
+                  width: double.infinity,
+                  margin: const EdgeInsets.only(top: 15, left: 12, right: 12),
+                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).cardColor,
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(16),
+                      bottom: Radius.circular(22),
+                    ),
+                    border: Border.all(
+                      color: Theme.of(context).dividerColor
+                          .withValues(alpha: 0.3),
+                    ),
                   ),
-                ),
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Text(
-                        'O\'quvchi qo\'shish',
-                        style: TextStyle(
-                          fontSize: 19,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.red,
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'O\'quvchi qo\'shish',
+                          style: Theme.of(context).textTheme.titleLarge
+                              ?.copyWith(
+                                fontSize: 19,
+                                fontWeight: FontWeight.w800,
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
                         ),
-                      ),
-                      const SizedBox(height: 10),
-                      TextField(
-                        controller: controller,
-                        autofocus: true,
-                        decoration: const InputDecoration(
-                          isDense: true,
-                          labelText: 'Ism va familiya',
-                          border: OutlineInputBorder(),
-                          focusedBorder: OutlineInputBorder(
-                            borderSide: BorderSide(color: Colors.red),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          onPressed: () async {
-                            if (controller.text.trim().isEmpty) return;
-                            await userFirestore.collection('students').add({
-                              'full_name': controller.text.trim(),
-                              'class_id': widget.classId,
-                              'createdAt': FieldValue.serverTimestamp(),
-                            });
-                            if (context.mounted) Navigator.pop(context);
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.red,
-                            foregroundColor: Colors.white,
-                            minimumSize: const Size.fromHeight(42),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
+                        const SizedBox(height: 10),
+                        TextField(
+                          controller: controller,
+                          autofocus: true,
+                          decoration: const InputDecoration(
+                            isDense: true,
+                            labelText: 'Ism va familiya',
+                            border: OutlineInputBorder(),
+                            focusedBorder: OutlineInputBorder(
+                              borderSide: BorderSide(color: Colors.red),
                             ),
                           ),
-                          child: const Text(
-                            'Qo\'shish',
-                            style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: isSaving
+                                ? null
+                                : () async {
+                                    if (isSaving) return;
+                                    final name = controller.text.trim();
+                                    if (name.isEmpty) return;
+
+                                    isSaving = true;
+                                    setModalState(() {});
+                                    try {
+                                      await userFirestore
+                                          .collection('students')
+                                          .add({
+                                            'full_name': name,
+                                            'class_id': widget.classId,
+                                            'createdAt':
+                                                FieldValue.serverTimestamp(),
+                                          });
+                                      if (context.mounted) {
+                                        Navigator.pop(context);
+                                      }
+                                    } catch (error) {
+                                      if (!context.mounted) return;
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                            SnackBar(
+                                              content: Text('Xatolik: $error'),
+                                            ),
+                                          );
+                                      setModalState(() => isSaving = false);
+                                    }
+                                  },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.red,
+                              foregroundColor: Colors.white,
+                              minimumSize: const Size.fromHeight(42),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            child: isSaving
+                                ? const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : const Text(
+                                    'Qo\'shish',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -387,13 +453,22 @@ class _StudentCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final name = (data['full_name'] ?? 'Noma\'lum').toString();
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: theme.cardColor,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: theme.dividerColor.withValues(alpha: 0.28)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.18 : 0.035),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
       ),
       child: Row(
         children: [
@@ -468,10 +543,18 @@ class _IconAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final actionColor = isDark ? color.withValues(alpha: 0.9) : color;
+
     return IconButton(
       onPressed: onTap,
       tooltip: tooltip,
-      icon: Icon(icon, color: color, size: 20),
+      style: IconButton.styleFrom(
+        backgroundColor: actionColor.withValues(alpha: isDark ? 0.16 : 0.09),
+        foregroundColor: actionColor,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+      icon: Icon(icon, color: actionColor, size: 19),
       constraints: const BoxConstraints.tightFor(width: 36, height: 36),
       padding: EdgeInsets.zero,
     );

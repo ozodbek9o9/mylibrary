@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'student_directory_page.dart';
-import '../ui_helpers.dart';
 import '../services/student_year_export_service.dart';
 import '../services/user_firestore.dart';
 
@@ -16,6 +15,7 @@ class StudentsPage extends StatefulWidget {
 class _StudentsPageState extends State<StudentsPage> {
   Set<String> selectedClasses = {};
   Map<String, String> classNames = {}; // Store names for editing
+  bool _isSelectionMode = false;
   bool _isExportingPdf = false;
   int _refreshKey = 0;
 
@@ -49,121 +49,146 @@ class _StudentsPageState extends State<StudentsPage> {
         return SlideTransition(position: offset, child: child);
       },
       pageBuilder: (context, animation, secondaryAnimation) {
-        return SafeArea(
-          child: Align(
-            alignment: Alignment.topCenter,
-            child: Material(
-              type: MaterialType.transparency,
-              child: Container(
-                height: 200,
-                width: double.infinity,
-                margin: const EdgeInsets.only(top: 15, left: 12, right: 12),
-                padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.vertical(
-                    bottom: Radius.circular(22),
-                    top: Radius.circular(16),
-                  ),
-                ),
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        docId == null ? 'Sinf qo\'shish' : 'Sinfni tahrirlash',
-                        style: const TextStyle(
-                          fontSize: 19,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.red,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      TextField(
-                        controller: nameController,
-                        decoration: const InputDecoration(
-                          isDense: true,
-                          labelText: 'Sinf nomi (Masalan: 10-A)',
-                          border: OutlineInputBorder(),
-                          focusedBorder: OutlineInputBorder(
-                            borderSide: BorderSide(color: Colors.red),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          onPressed: () async {
-                            if (nameController.text.isNotEmpty) {
-                              if (docId == null) {
-                                await showLoading(context);
-                                try {
-                                  await userFirestore.collection('classes').add(
-                                    {
-                                      'name': nameController.text.trim(),
-                                      'createdAt': FieldValue.serverTimestamp(),
-                                    },
-                                  );
-                                } catch (e) {
-                                  if (context.mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text(
-                                          'Xatolik: $e (Firebase ruxsatnomasi (Rules) eskirgan bo\'lishi mumkin)',
-                                        ),
-                                      ),
-                                    );
-                                  }
-                                  return;
-                                }
-                              } else {
-                                showDialog(
-                                  context: context,
-                                  barrierDismissible: false,
-                                  builder: (context) => const Center(
-                                    child: CircularProgressIndicator(
-                                      color: Colors.red,
-                                    ),
-                                  ),
-                                );
-                                await Future.delayed(
-                                  const Duration(milliseconds: 1500),
-                                );
-                                if (context.mounted) Navigator.pop(context);
+        bool isSaving = false;
 
-                                await userFirestore
-                                    .collection('classes')
-                                    .doc(docId)
-                                    .update({
-                                      'name': nameController.text.trim(),
-                                    });
-
-                                setState(() => selectedClasses.clear());
-                              }
-                              if (context.mounted) Navigator.pop(context);
-                            }
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.red,
-                            foregroundColor: Colors.white,
-                            minimumSize: const Size.fromHeight(42),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return SafeArea(
+              child: Align(
+                alignment: Alignment.topCenter,
+                child: Material(
+                  color: Theme.of(context).cardColor,
+                  elevation: 18,
+                  shadowColor: Colors.black.withValues(alpha: 0.3),
+                  child: Container(
+                    height: 200,
+                    width: double.infinity,
+                    margin: const EdgeInsets.only(top: 15, left: 12, right: 12),
+                    padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).cardColor,
+                      borderRadius: BorderRadius.vertical(
+                        bottom: Radius.circular(22),
+                        top: Radius.circular(16),
+                      ),
+                      border: Border.all(
+                        color: Theme.of(context).dividerColor
+                            .withValues(alpha: 0.3),
+                      ),
+                    ),
+                    child: SingleChildScrollView(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            docId == null
+                                ? 'Sinf qo\'shish'
+                                : 'Sinfni tahrirlash',
+                            style: TextStyle(
+                              fontSize: 19,
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context).colorScheme.primary,
                             ),
                           ),
-                          child: Text(
-                            docId == null ? 'Qo\'shish' : 'Saqlash',
-                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          const SizedBox(height: 10),
+                          TextField(
+                            controller: nameController,
+                            decoration: const InputDecoration(
+                              isDense: true,
+                              labelText: 'Sinf nomi (Masalan: 10-A)',
+                              border: OutlineInputBorder(),
+                              focusedBorder: OutlineInputBorder(
+                                borderSide: BorderSide(color: Colors.red),
+                              ),
+                            ),
                           ),
-                        ),
+                          const SizedBox(height: 12),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              onPressed: isSaving
+                                  ? null
+                                  : () async {
+                                      if (isSaving) return;
+                                      final name = nameController.text.trim();
+                                      if (name.isEmpty) return;
+
+                                      isSaving = true;
+                                      setState(() {});
+
+                                      try {
+                                        if (docId == null) {
+                                          await userFirestore
+                                              .collection('classes')
+                                              .add({
+                                                'name': name,
+                                                'createdAt':
+                                                    FieldValue.serverTimestamp(),
+                                              });
+                                        } else {
+                                          await userFirestore
+                                              .collection('classes')
+                                              .doc(docId)
+                                              .update({'name': name});
+
+                                          if (mounted) {
+                                            setState(
+                                              () => selectedClasses.clear(),
+                                            );
+                                          }
+                                        }
+
+                                        if (context.mounted) {
+                                          Navigator.pop(context);
+                                        }
+                                      } catch (e) {
+                                        if (context.mounted) {
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            SnackBar(
+                                              content: Text(
+                                                'Xatolik: $e (Firebase ruxsatnomasi (Rules) eskirgan bo\'lishi mumkin)',
+                                              ),
+                                            ),
+                                          );
+                                          setState(() => isSaving = false);
+                                        }
+                                      }
+                                    },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.red,
+                                foregroundColor: Colors.white,
+                                minimumSize: const Size.fromHeight(42),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              child: isSaving
+                                  ? const SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(
+                                        color: Colors.white,
+                                        strokeWidth: 2,
+                                      ),
+                                    )
+                                  : Text(
+                                      docId == null ? 'Qo\'shish' : 'Saqlash',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
                 ),
               ),
-            ),
-          ),
+            );
+          },
         );
       },
     );
@@ -226,10 +251,29 @@ class _StudentsPageState extends State<StudentsPage> {
     }
   }
 
+  void _toggleClassSelection(String classId) {
+    setState(() {
+      _isSelectionMode = true;
+      if (selectedClasses.contains(classId)) {
+        selectedClasses.remove(classId);
+      } else {
+        selectedClasses.add(classId);
+      }
+      if (selectedClasses.isEmpty) {
+        _isSelectionMode = false;
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surface = Theme.of(context).cardColor;
+    final border = Theme.of(context).dividerColor.withValues(alpha: 0.18);
+    final muted = Theme.of(context).textTheme.bodyMedium?.color ?? Colors.grey;
+
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: RefreshIndicator(
         onRefresh: _refreshStudents,
         color: Colors.red,
@@ -241,7 +285,7 @@ class _StudentsPageState extends State<StudentsPage> {
               children: [
                 const _StudentsHero(),
                 const SizedBox(height: 20),
-                if (selectedClasses.isEmpty)
+                if (!_isSelectionMode && selectedClasses.isEmpty)
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton.icon(
@@ -401,8 +445,10 @@ class _StudentsPageState extends State<StudentsPage> {
                             return Card(
                               elevation: isSelected ? 4 : 2,
                               color: isSelected
-                                  ? Colors.red.shade50
-                                  : Colors.white,
+                                  ? (isDark
+                                        ? const Color(0xff2a1b1b)
+                                        : Colors.red.shade50)
+                                  : surface,
                               margin: const EdgeInsets.only(bottom: 12),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12),
@@ -411,7 +457,7 @@ class _StudentsPageState extends State<StudentsPage> {
                                         color: Colors.red,
                                         width: 2,
                                       )
-                                    : BorderSide.none,
+                                    : BorderSide(color: border, width: 1),
                               ),
                               child: ListTile(
                                 contentPadding: const EdgeInsets.symmetric(
@@ -441,44 +487,33 @@ class _StudentsPageState extends State<StudentsPage> {
                                 ),
                                 subtitle: Text(
                                   'O\'quvchilar soni: $studentCount',
-                                  style: const TextStyle(color: Colors.grey),
+                                  style: TextStyle(color: muted),
                                 ),
                                 trailing: isSelected
                                     ? null
-                                    : const Icon(
+                                    : Icon(
                                         Icons.arrow_forward_ios,
-                                        color: Colors.grey,
+                                        color: muted,
                                       ),
-                                onLongPress: () {
-                                  setState(() {
-                                    if (isSelected) {
-                                      selectedClasses.remove(classId);
-                                    } else {
-                                      selectedClasses.add(classId);
-                                    }
-                                  });
-                                },
+                                onLongPress: () =>
+                                    _toggleClassSelection(classId),
                                 onTap: () {
-                                  if (selectedClasses.isNotEmpty) {
-                                    setState(() {
-                                      if (isSelected) {
-                                        selectedClasses.remove(classId);
-                                      } else {
-                                        selectedClasses.add(classId);
-                                      }
-                                    });
-                                  } else {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) =>
-                                            StudentDirectoryPage(
-                                              classId: classId,
-                                              className: className,
-                                            ),
-                                      ),
-                                    );
+                                  if (_isSelectionMode ||
+                                      selectedClasses.isNotEmpty) {
+                                    _toggleClassSelection(classId);
+                                    return;
                                   }
+
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) =>
+                                          StudentDirectoryPage(
+                                            classId: classId,
+                                            className: className,
+                                          ),
+                                    ),
+                                  );
                                 },
                               ),
                             );
@@ -554,17 +589,25 @@ class _StudentsHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(20, 18, 16, 18),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xfffff4f4), Color(0xffffdddd)],
+        gradient: LinearGradient(
+          colors: isDark
+              ? const [Color(0xff281b1d), Color(0xff382124)]
+              : const [Color(0xfffff4f4), Color(0xffffdddd)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: const Color(0xffffd0d0)),
+        border: Border.all(
+          color: isDark
+              ? Colors.red.withValues(alpha: 0.28)
+              : const Color(0xffffd0d0),
+        ),
       ),
       child: Row(
         children: [
@@ -578,31 +621,41 @@ class _StudentsHero extends StatelessWidget {
                     vertical: 6,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.8),
+                    color: isDark
+                        ? const Color(0xff43282c)
+                        : Colors.white.withValues(alpha: 0.8),
                     borderRadius: BorderRadius.circular(20),
                   ),
-                  child: const Text(
+                  child: Text(
                     'O\'quvchilar bo\'limi',
                     style: TextStyle(
-                      color: Color(0xffc62828),
+                      color: isDark
+                          ? const Color(0xffffa0a0)
+                          : const Color(0xffc62828),
                       fontWeight: FontWeight.w700,
                       fontSize: 12,
                     ),
                   ),
                 ),
                 const SizedBox(height: 12),
-                const Text(
+                Text(
                   'Har bir sinfda\nkatta imkoniyatlar!',
                   style: TextStyle(
                     fontSize: 24,
                     height: 1.1,
                     fontWeight: FontWeight.w900,
+                    color: isDark ? const Color(0xfff5e9e9) : null,
                   ),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   'O\'quvchilar va sinflarni bir joydan boshqaring.',
-                  style: TextStyle(color: Colors.grey.shade700, height: 1.35),
+                  style: TextStyle(
+                    color: isDark
+                        ? const Color(0xffd0bfc1)
+                        : Colors.grey.shade700,
+                    height: 1.35,
+                  ),
                 ),
               ],
             ),
@@ -612,12 +665,14 @@ class _StudentsHero extends StatelessWidget {
             width: 72,
             height: 72,
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.78),
+              color: isDark
+                  ? const Color(0xff43282c)
+                  : Colors.white.withValues(alpha: 0.78),
               shape: BoxShape.circle,
             ),
-            child: const Icon(
+            child: Icon(
               Icons.groups_rounded,
-              color: Color(0xffef3340),
+              color: isDark ? const Color(0xffff858b) : const Color(0xffef3340),
               size: 38,
             ),
           ),

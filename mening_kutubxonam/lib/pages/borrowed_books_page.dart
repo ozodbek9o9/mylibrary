@@ -11,7 +11,7 @@ class BorrowedBooksPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xfff7f7f8),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text(
           'Olingan kitoblar',
@@ -117,13 +117,15 @@ class _BorrowedBookCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: theme.cardColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: theme.dividerColor.withValues(alpha: 0.28)),
       ),
       child: Row(
         children: [
@@ -131,7 +133,7 @@ class _BorrowedBookCard extends StatelessWidget {
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              color: const Color(0xffffe8e8),
+              color: isDark ? const Color(0xff402326) : const Color(0xffffe8e8),
               borderRadius: BorderRadius.circular(14),
             ),
             child: const Icon(Icons.menu_book_rounded, color: Colors.red),
@@ -175,17 +177,24 @@ class _ReceiveSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return SafeArea(
       child: Container(
         height: 100,
         padding: const EdgeInsets.fromLTRB(18, 12, 18, 10),
-        decoration: const BoxDecoration(
-          color: Colors.white,
+        decoration: BoxDecoration(
+          color: theme.cardColor,
           borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+          border: Border.all(color: theme.dividerColor.withValues(alpha: 0.3)),
         ),
         child: Row(
           children: [
-            const Icon(Icons.assignment_return_rounded, color: Colors.red),
+            Icon(
+              Icons.assignment_return_rounded,
+              color: isDark ? const Color(0xffff8a80) : Colors.red,
+            ),
             const SizedBox(width: 10),
             Expanded(
               child: Text(
